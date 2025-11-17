@@ -266,21 +266,27 @@ BAFJS7,-23.5,-46.5
 PLANT2,-22.9,-43.2
 ```
 
+**CAMS Forecast data format** (Parquet with columns):
+
+- `latitude`: Latitude in degrees (float)
+- `longitude`: Longitude in degrees (float)
+- `data_hora_rodada`: CAMS execution timestamp (datetime)
+- `data_hora_previsao`: CAMS sample forecast timestamp (datetime)
+- `valor`: Measured value (float)
+
+**COD Forecast data format** (Parquet with columns):
+
+- `latitude`: Latitude in degrees (float)
+- `longitude`: Longitude in degrees (float)
+- `data_hora_rodada`: GOES image timestamp (datetime)
+- `data_hora_previsao`: COD sample forecast timestamp (datetime)
+- `valor`: Measured value (float)
+
 **Measured data format** (Parquet with columns):
 
-- `time`: Timestamp (datetime)
+- `id_usina`: Plant ID (string)
+- `data_hora_observacao`: Timestamp (datetime)
 - `valor`: Measured irradiance value (W/m²)
-
-**Forecast data**: Must include atmospheric parameters:
-
-- Cloud Optical Depth (COD)
-- Surface albedo
-- Surface pressure
-- Water vapor
-- Ozone
-- NO₂
-- Aerosol optical depth at 550nm
-- Aerosol optical depth at 670nm
 
 ## Outputs
 
