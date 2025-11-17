@@ -1,0 +1,30 @@
+{
+    // The mode on which the application will run: train or inference
+    "mode": "inference",
+    // The absolute or relative path to the input data (local or S3)
+    "input": "data/input",
+    // The absolute or relative path to the output data (local or S3)
+    "output": "data/output",
+    // The absolute or relative path to the model artifacts
+    // This path will be used to save models during training and load models during inference
+    "artifact": "data/artifacts",
+    // The IDs of the plants to be processed (None = all plants)
+    "plant_ids": [
+        "BAFJS7"
+    ],
+    // The forecasting day ahead
+    "forecasting_day_ahead": 0,
+    // The target radiation type: GHI, DNI, DHI
+    "target_radiation_type": "dni",
+    // The time windows for training, validation, testing, and inference
+    "time_windows": {
+        "training": "2024-01-01T00:00:00/2024-02-01T00:00:00",
+        "validation": "2024-02-01T00:00:00/2024-03-01T00:00:00",
+        "test": "2024-03-01T00:00:00/2024-04-01T00:00:00",
+        "inference": "2024-03-01T00:00:00/2024-04-01T00:00:00"
+    },
+    "postprocessing": {
+        "errors": true,
+        "plots": true
+    }
+}
