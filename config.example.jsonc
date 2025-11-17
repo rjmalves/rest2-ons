@@ -1,6 +1,6 @@
 {
     // The mode on which the application will run: train or inference
-    "mode": "inference",
+    "mode": "train",
     // The absolute or relative path to the input data (local or S3)
     "input": "data/input",
     // The absolute or relative path to the output data (local or S3)
@@ -14,7 +14,7 @@
     ],
     // The forecasting day ahead
     "forecasting_day_ahead": 0,
-    // The target radiation type: GHI, DNI, DHI
+    // The target radiation type: ghi, dni, dhi or ghi_tracker
     "target_radiation_type": "dni",
     // The time windows for training, validation, testing, and inference
     "time_windows": {

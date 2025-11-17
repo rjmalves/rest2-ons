@@ -245,13 +245,17 @@ The application expects the following input data structure:
 
 ```
 data/input/
+├── albedo.parquet                # CAMS cloud albedo forecast data
+├── cod.parquet                   # COD forecast data (possibly from GOES image forecasts)
+├── h2o.parquet                   # CAMS water vapour forecast data
+├── measured_irradiance.parquet   # Measured irradiance data
+├── no2.parquet                   # CAMS nitrogen dioxide forecast data
+├── o3.parquet                    # CAMS ozone forecast data
+├── od550.parquet                 # CAMS optical depth at 550nm forecast data
+├── od670.parquet                 # CAMS optical depth at 670nm forecast data
+├── psurf.parquet                 # CAMS surface pressure forecast data
+├── temp.parquet                  # CAMS 2m temperature forecast data
 ├── usinas.csv                    # Plant metadata (id, latitude, longitude)
-├── measured/                     # Measured radiation data
-│   └── {plant_id}.parquet       # Time-series of measured values
-├── forecasts/                    # Forecast data
-│   ├── cams/                    # ECMWF CAMS data
-│   ├── cod/                     # Cloud optical depth forecasts
-│   └── ...                      # Other forecast sources
 ```
 
 **usinas.csv format**:
@@ -271,12 +275,12 @@ PLANT2,-22.9,-43.2
 
 - Cloud Optical Depth (COD)
 - Surface albedo
-- Ångström exponent
 - Surface pressure
 - Water vapor
 - Ozone
 - NO₂
 - Aerosol optical depth at 550nm
+- Aerosol optical depth at 670nm
 
 ## Outputs
 

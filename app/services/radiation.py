@@ -944,9 +944,6 @@ class REST2:
         chosen_radiation = self._choose_radiation_for_metric(
             result, radiation_type
         )
-        print(
-            f"Measured samples: {len(measured)} | Modeled samples: {len(chosen_radiation)}"
-        )
         metrics = {}
         for metric_name, metric_f in zip(
             ["ME", "MAE", "RMSE"], [me, mae, rmse]

@@ -30,12 +30,6 @@ class LocationInputData:
     psurf: pl.DataFrame
     temp2m: pl.DataFrame
 
-    # Solar radiation data
-    dni: pl.DataFrame
-    dni_cs: pl.DataFrame
-    ghi: pl.DataFrame
-    ghi_cs: pl.DataFrame
-
     # Derived fields (computed from raw data)
     angstrom_exponent: pl.DataFrame = None
 
@@ -97,10 +91,6 @@ class LocationInputData:
         self.od670 = self._upsample(self.od670, interval)
         self.psurf = self._upsample(self.psurf, interval)
         self.temp2m = self._upsample(self.temp2m, interval)
-        self.dni = self._upsample(self.dni, interval)
-        self.dni_cs = self._upsample(self.dni_cs, interval)
-        self.ghi = self._upsample(self.ghi, interval)
-        self.ghi_cs = self._upsample(self.ghi_cs, interval)
         if self.angstrom_exponent is not None:
             self.angstrom_exponent = self._upsample(
                 self.angstrom_exponent, interval
@@ -267,10 +257,6 @@ class InputData:
             "od670": "od670.parquet",
             "psurf": "psurf.parquet",
             "temp2m": "temp.parquet",
-            "dni": "dni.parquet",
-            "dni_cs": "dni_cs.parquet",
-            "ghi": "ghi.parquet",
-            "ghi_cs": "ghi_cs.parquet",
         }
 
         # Load and process each data field
