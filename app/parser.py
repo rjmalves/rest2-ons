@@ -3,8 +3,8 @@ import argparse
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-            description="ML Pipeline for Cloud Optical Depth and Solar Irradiance Forecasting"
-        )
+        description="rest2-ons: Irradiance forecasting with measured in-site and satellite data"
+    )
     parser.add_argument(
         "--config",
         type=str,
