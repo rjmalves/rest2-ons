@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cod-tempo-real"
-description = "Add your description here"
+name = "rest2-ons"
+description = "ML generalization of the REST2 radiation with learnable parameters for using with the ECMWF CAMS forecasts, COD forecasts and in-site measured data."
 readme = "README.md"
 requires-python = ">=3.11"
 dynamic = ["version"]
