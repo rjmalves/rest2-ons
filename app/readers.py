@@ -14,8 +14,6 @@ from app.utils.utils import haversine_distance
 
 @dataclass
 class LocationInputData:
-    """Container for all forecast data for a specific location."""
-
     latitude: float
     longitude: float
 
@@ -38,7 +36,6 @@ class LocationInputData:
     forecasting_day: int = None
 
     def apply_unit_conversions(self) -> "LocationInputData":
-        """Apply unit conversions to the data fields."""
         self.o3 = self.o3.with_columns(
             pl.col("valor") * 46.73
         )  # kg/m2 -> atm-cm: ro_o3 = 2.14kg/m3 => o3[kg/m2]/ro_o3 * 100 (m->cm) = 46.73
@@ -98,7 +95,6 @@ class LocationInputData:
         return self
 
     def get_rest2_inputs(self) -> Dict[str, pl.DataFrame]:
-        """Get inputs formatted for REST2 model."""
         return {
             "angstrom_exponent": self.angstrom_exponent,
             "pressure": self.psurf,
@@ -114,8 +110,6 @@ class LocationInputData:
 
 
 class LocationDataBuilder:
-    """Builder class for creating LocationInputData with optional filtering and processing."""
-
     def __init__(self, reader: "InputData", latitude: float, longitude: float):
         self.reader = reader
         self.latitude = latitude
@@ -129,28 +123,23 @@ class LocationDataBuilder:
     def time_range(
         self, start_date: datetime, end_date: datetime
     ) -> "LocationDataBuilder":
-        """Set the time range filter."""
         self.start_date = start_date
         self.end_date = end_date
         return self
 
     def forecasting_day_filter(self, day: int) -> "LocationDataBuilder":
-        """Set the forecasting day filter."""
         self.forecasting_day = day
         return self
 
     def skip_unit_conversions(self) -> "LocationDataBuilder":
-        """Skip automatic unit conversions."""
         self._apply_unit_conversions = False
         return self
 
     def skip_derived_fields(self) -> "LocationDataBuilder":
-        """Skip calculation of derived fields like angstrom exponent."""
         self._calculate_derived_fields = False
         return self
 
     def build(self) -> LocationInputData:
-        """Build the LocationInputData with all specified filters and processing."""
         return self.reader._build_location_data(
             self.latitude,
             self.longitude,
@@ -163,8 +152,6 @@ class LocationDataBuilder:
 
 
 class InputData:
-    """Improved InputData class with fluent API and separation of concerns."""
-
     def __init__(self, path: str):
         self.path = path
 
@@ -228,7 +215,6 @@ class InputData:
     def for_location(
         self, latitude: float, longitude: float
     ) -> LocationDataBuilder:
-        """Create a LocationDataBuilder for the specified coordinates."""
         return LocationDataBuilder(self, latitude, longitude)
 
     def _build_location_data(
@@ -307,7 +293,6 @@ class InputData:
         end_date: Optional[datetime] = None,
         forecasting_day: Optional[int] = None,
     ) -> Optional[pl.DataFrame]:
-        """Load and filter a single data field."""
         try:
             file_path = os.path.join(self.path, filename)
             if not os.path.exists(file_path):
