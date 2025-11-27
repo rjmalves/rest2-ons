@@ -56,10 +56,10 @@ class MeasuredData:
         return data
 
 
-plant_df = pd.read_csv("data/usinas.csv")
+plant_df = pd.read_csv("data/input/usinas.csv")
 
 dfs = []
-for plant_id in plant_df["id_usina"].unique()[0:1]:
+for plant_id in plant_df["id_usina"].unique():
     print(f"Processing plant {plant_id}...")
 
     try:
