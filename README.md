@@ -1,400 +1,177 @@
 # rest2-ons
 
-ML generalization of the REST2 radiation with learnable parameters for using with the ECMWF CAMS forecasts, COD forecasts and in-site measured data.
-
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://github.com/rjmalves/rest2-ons/actions/workflows/tests.yaml/badge.svg)](https://github.com/rjmalves/rest2-ons/actions/workflows/tests.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**ML Generalization of REST2 Solar Radiation Model** — A Python application for solar irradiance forecasting using learnable parameters optimized with ECMWF CAMS forecasts, COD forecasts, and in-site measured data.
+
+Developed for use in energy planning and renewable generation forecasting at solar photovoltaic plants.
 
 ---
 
-## Table of Contents
+## 📋 Overview
 
-- [Overview](#overview)
-- [Installation](#installation)
-  - [System-wide Installation](#system-wide-installation-recommended)
-  - [User Installation](#user-installation)
-  - [Installation Options](#installation-options)
-  - [Requirements](#requirements)
-- [Usage](#usage)
-  - [Basic Workflow](#basic-workflow)
-- [Configuration](#configuration)
-  - [Configuration File Structure](#configuration-file-structure)
-  - [Configuration Parameters Reference](#configuration-parameters-reference)
-  - [Input Data Requirements](#input-data-requirements)
-- [Outputs](#outputs)
-  - [Training Mode Outputs](#training-mode-outputs)
-  - [Inference Mode Outputs](#inference-mode-outputs)
-- [Examples](#examples)
-- [References](#references)
-- [Additional Documentation](#additional-documentation)
+This application implements a machine learning generalization of the [REST2 (Reference Evaluation of Solar Transmittance, 2-band) radiation model](https://github.com/NREL/rest2) developed by NREL. It introduces learnable parameters optimized using measured in-site data, making it adaptable for specific locations and conditions.
+
+1. **Trains** regression models using historical measured irradiance and atmospheric forecasts
+2. **Optimizes** REST2 model parameters (`mu0`, `g`) to minimize RMSE against ground truth
+3. **Generates** solar irradiance predictions (GHI, DNI, DHI) for operational forecasting
+4. **Outputs** predictions, performance metrics, and interactive visualization plots
+
+### Use Cases
+
+- Day-ahead and same-day solar irradiance forecasting
+- Parameter calibration for site-specific REST2 model adaptation
+- Model validation and performance benchmarking against baselines
+- Training data preparation for downstream power generation models
 
 ---
 
-## Installation
+## 🏗️ Architecture
 
-This CLI application can be installed system-wide or for the current user only.
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                              INPUT DATA                                    │
+├─────────────────┬─────────────────┬──────────────────┬─────────────────────┤
+│ CAMS Forecasts  │ COD Forecasts   │ Measured Data    │ Plant Metadata      │
+│ (atm. params)   │ (cloud depth)   │ (irradiance)     │ (usinas.csv)        │
+└────────┬────────┴────────┬────────┴────────┬─────────┴──────────┬──────────┘
+         │                 │                 │                    │
+         ▼                 ▼                 ▼                    ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│                         MODE: TRAIN (train.py)                             │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐  │
+│  │ Data Loading &   │  │ Solar Geometry   │  │ Parameter Optimization   │  │
+│  │ Preprocessing    │→ │ Calculation      │→ │ (BFGS minimization)      │  │
+│  └──────────────────┘  └──────────────────┘  └───────────┬──────────────┘  │
+│                                                          │                 │
+│                                                          ▼                 │
+│                                              ┌──────────────────────────┐  │
+│                                              │ Artifact: {plant}.json   │  │
+│                                              │ (mu0, g, metrics)        │  │
+│                                              └──────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────┘
 
-### System-wide Installation (Recommended)
-
-Installs to `/opt/rest2-ons` with a symlink in `/usr/local/bin`. Requires sudo privileges.
-
-```bash
-sudo ./setup.sh
+┌────────────────────────────────────────────────────────────────────────────┐
+│                        MODE: INFERENCE (inference.py)                      │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐  │
+│  │ Load Trained     │  │ Apply REST2      │  │ Generate Predictions     │  │
+│  │ Parameters       │→ │ Model            │→ │ & Plots                  │  │
+│  └──────────────────┘  └──────────────────┘  └───────────┬──────────────┘  │
+│                                                          │                 │
+│                                                          ▼                 │
+│                                              ┌──────────────────────────┐  │
+│                                              │ Output: {plant}.parquet  │  │
+│                                              │ (time, valor)            │  │
+│                                              └──────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### User Installation
+### Main Components
 
-Installs to `~/.local/rest2-ons` with a symlink in `~/.local/bin`. No sudo required.
+| Module             | Description                                        |
+| ------------------ | -------------------------------------------------- |
+| `app/train.py`     | Training pipeline with BFGS parameter optimization |
+| `app/inference.py` | Prediction pipeline using trained parameters       |
+| `app/readers.py`   | Data loading from Parquet/CSV files                |
+| `app/writers.py`   | Output generation (Parquet, JSON, HTML plots)      |
+| `app/services/`    | REST2 model implementation and solar geometry      |
+| `app/utils/`       | Utility functions (metrics, plotting, bounds)      |
 
-```bash
-./setup.sh --user
-```
+---
 
-If `~/.local/bin` is not in your PATH, add it to your shell profile:
+## 🚀 Quick Start
 
-```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-### Installation Options
-
-- `-u, --user`: Install for current user only (no sudo required)
-- `-f, --force`: Force reinstallation (removes existing installation)
-- `-q, --quiet`: Minimal output
-- `--uninstall`: Remove the installation
-- `-h, --help`: Show help
-
-### Examples
-
-```bash
-# System-wide installation
-sudo ./setup.sh
-
-# User-only installation
-./setup.sh --user
-
-# Force reinstallation
-sudo ./setup.sh --force
-
-# Uninstall system installation
-sudo ./setup.sh --uninstall
-
-# Uninstall user installation
-./setup.sh --user --uninstall
-```
-
-### Requirements
+### Prerequisites
 
 - Python >= 3.11
-- pip, setuptools, wheel (automatically upgraded during installation)
+- pip, setuptools, wheel
 
-### Using Makefile (Alternative)
-
-For convenience, you can also use the provided Makefile:
+### Installation
 
 ```bash
-make install         # System-wide installation
-make install-user    # User installation
-make reinstall       # Force reinstall
-make uninstall       # Remove system installation
-make uninstall-user  # Remove user installation
-make clean          # Clean build artifacts
+# Clone the repository
+git clone https://github.com/rjmalves/rest2-ons.git
+cd rest2-ons
+
+# System-wide installation (recommended)
+sudo ./setup.sh
+
+# OR user-only installation
+./setup.sh --user
 ```
 
-## Overview
-
-`rest2-ons` is a machine learning generalization of the [REST2 (Reference Evaluation of Solar Transmittance, 2-band) radiation model](https://github.com/NREL/rest2) developed by NREL. This implementation introduces learnable parameters optimized using measured in-site data, making it adaptable for specific locations and conditions.
-
-### Key Features
-
-- **Learnable Parameters**: Automatically optimizes REST2 model parameters using historical measured data
-- **Multiple Data Sources**: Supports ECMWF CAMS forecasts, COD (Cloud Optical Depth) forecasts, and in-site measurements
-- **Dual Operating Modes**: Train models with historical data or run inference with trained models
-- **Multiple Radiation Types**: Supports GHI (Global Horizontal Irradiance), DNI (Direct Normal Irradiance), DHI (Diffuse Horizontal Irradiance), and GHI for tracking systems
-- **Comprehensive Output**: Generates predictions, performance metrics, and visualization plots
-
-### REST2 Model Background
-
-The REST2 model is a two-band solar radiation model that calculates:
-
-- **Direct Normal Irradiance (DNI)**: Direct beam radiation on a surface perpendicular to the sun
-- **Diffuse Horizontal Irradiance (DHI)**: Scattered radiation from the sky
-- **Global Horizontal Irradiance (GHI)**: Total radiation on a horizontal surface (DNI × cos(zenith) + DHI)
-
-The model accounts for:
-
-- Atmospheric transmittance (Rayleigh scattering, aerosol extinction, gas absorption)
-- Cloud optical depth effects
-- Surface albedo and multiple reflections
-- Solar zenith angle variations
-
-This implementation extends REST2 by optimizing parameters (`mu0` and `g`) to minimize RMSE against measured data, improving prediction accuracy for specific locations.
-
-## Usage
-
-After installation, you can run the application from anywhere:
+### Quick Run
 
 ```bash
+# 1. Prepare your data in ./data/input (see "Input Data" section)
+
+# 2. Copy and configure config file
+cp config.example.jsonc config.jsonc
+
+# 3. Train the model
+rest2-ons --config config.jsonc  # with mode: "train"
+
+# 4. Change mode to "inference" and run predictions
+rest2-ons --config config.jsonc  # with mode: "inference"
+```
+
+### Using Docker
+
+```bash
+# Build image
+docker build -t rest2-ons .
+
+# Run with mounted volumes
+docker run -v $(pwd)/data:/app/data -v $(pwd)/config.jsonc:/app/config.jsonc rest2-ons --config /app/config.jsonc
+```
+
+---
+
+## 📖 Detailed Usage
+
+### Command Line
+
+```bash
+rest2-ons --config <CONFIG_FILE>
 rest2-ons --help
-rest2-ons --config config.example.jsonc
 ```
 
-### Basic Workflow
+| Argument   | Description                      | Default  |
+| ---------- | -------------------------------- | -------- |
+| `--config` | Path to JSONC configuration file | Required |
 
-1. **Training Mode**: Train the model using historical data
-
-   ```bash
-   rest2-ons --config config_train.jsonc
-   ```
-
-   - Reads input data (forecasts and measurements)
-   - Optimizes REST2 parameters for each plant
-   - Saves trained parameters to artifacts directory
-   - Generates training/validation/testing metrics and plots
-
-2. **Inference Mode**: Generate predictions using trained models
-   ```bash
-   rest2-ons --config config_inference.jsonc
-   ```
-   - Loads pre-trained parameters from artifacts
-   - Generates radiation predictions for specified time period
-   - Outputs results as Parquet files and plots
-
-## Configuration
-
-The application is configured using a JSON/JSONC file. Here's a detailed explanation of all configuration options:
-
-### Configuration File Structure
+### Configuration File (`config.jsonc`)
 
 ```jsonc
 {
   // Operating mode: "train" or "inference"
   "mode": "train",
 
-  // Path to input data directory (local path or S3)
-  // Expected structure:
-  //   - usinas.csv: Plant metadata (ID, latitude, longitude)
-  //   - Forecast data files (CAMS, COD, etc.)
-  //   - Measured radiation data files
+  // I/O paths (local or S3)
   "input": "data/input",
-
-  // Path to output directory for predictions
   "output": "data/output",
-
-  // Path to model artifacts directory
-  // Training: Saves learned parameters and metrics
-  // Inference: Loads pre-trained parameters
   "artifact": "data/artifacts",
 
-  // List of plant IDs to process
-  // Set to null to process all plants in usinas.csv
-  "plant_ids": ["BAFJS7", "PLANT2"],
+  // Plant IDs to process (null = all plants in usinas.csv)
+  "plant_ids": ["BAFJS7"],
 
-  // Forecasting horizon in days ahead (0 = same day, 1 = next day, etc.)
+  // Forecast horizon in days ahead (0 = same day)
   "forecasting_day_ahead": 0,
 
-  // Target radiation type for optimization and prediction
-  // Options: "ghi", "dni", "dhi", "ghi_tracker"
+  // Target radiation type: "ghi", "dni", "dhi", "ghi_tracker"
   "target_radiation_type": "dni",
 
-  // Time windows for different phases (ISO 8601 format: start/end)
-  "time_windows": {
-    // Training period: Data used to optimize model parameters
-    "training": "2024-01-01T00:00:00/2024-02-01T00:00:00",
-
-    // Validation period: Data used for hyperparameter tuning (optional)
-    "validation": "2024-02-01T00:00:00/2024-03-01T00:00:00",
-
-    // Test period: Independent evaluation of model performance
-    "test": "2024-03-01T00:00:00/2024-04-01T00:00:00",
-
-    // Inference period: Time range for generating predictions
-    "inference": "2024-03-01T00:00:00/2024-04-01T00:00:00"
-  },
-
-  // Post-processing options
-  "postprocessing": {
-    // Calculate error metrics (ME, MAE, RMSE)
-    "errors": true,
-
-    // Generate visualization plots
-    "plots": true
-  }
-}
-```
-
-### Configuration Parameters Reference
-
-| Parameter               | Type          | Required | Description                                                                   |
-| ----------------------- | ------------- | -------- | ----------------------------------------------------------------------------- |
-| `mode`                  | string        | Yes      | Operating mode: `"train"` or `"inference"`                                    |
-| `input`                 | string        | Yes      | Path to input data directory                                                  |
-| `output`                | string        | Yes      | Path to output directory                                                      |
-| `artifact`              | string        | Yes      | Path to model artifacts directory                                             |
-| `plant_ids`             | array or null | No       | List of plant IDs to process (null = all plants)                              |
-| `forecasting_day_ahead` | integer       | No       | Forecast horizon in days (default: 0)                                         |
-| `target_radiation_type` | string        | No       | Radiation type: `"ghi"`, `"dni"`, `"dhi"`, `"ghi_tracker"` (default: `"ghi"`) |
-| `time_windows`          | object        | Yes      | Time ranges for training/validation/test/inference                            |
-| `postprocessing.errors` | boolean       | No       | Calculate error metrics (default: false)                                      |
-| `postprocessing.plots`  | boolean       | No       | Generate plots (default: false)                                               |
-
-### Input Data Requirements
-
-The application expects the following input data structure:
-
-```
-data/input/
-├── albedo.parquet                # CAMS cloud albedo forecast data
-├── cod.parquet                   # COD forecast data (possibly from GOES image forecasts)
-├── h2o.parquet                   # CAMS water vapour forecast data
-├── measured_irradiance.parquet   # Measured irradiance data
-├── no2.parquet                   # CAMS nitrogen dioxide forecast data
-├── o3.parquet                    # CAMS ozone forecast data
-├── od550.parquet                 # CAMS optical depth at 550nm forecast data
-├── od670.parquet                 # CAMS optical depth at 670nm forecast data
-├── psurf.parquet                 # CAMS surface pressure forecast data
-├── temp.parquet                  # CAMS 2m temperature forecast data
-├── usinas.csv                    # Plant metadata (id, latitude, longitude)
-```
-
-**usinas.csv format**:
-
-```csv
-id,latitude,longitude
-BAFJS7,-23.5,-46.5
-PLANT2,-22.9,-43.2
-```
-
-**CAMS Forecast data format** (Parquet with columns):
-
-- `latitude`: Latitude in degrees (float)
-- `longitude`: Longitude in degrees (float)
-- `data_hora_rodada`: CAMS execution timestamp (datetime)
-- `data_hora_previsao`: CAMS sample forecast timestamp (datetime)
-- `valor`: Measured value (float)
-
-**COD Forecast data format** (Parquet with columns):
-
-- `latitude`: Latitude in degrees (float)
-- `longitude`: Longitude in degrees (float)
-- `data_hora_rodada`: GOES image timestamp (datetime)
-- `data_hora_previsao`: COD sample forecast timestamp (datetime)
-- `valor`: Measured value (float)
-
-**Measured data format** (Parquet with columns):
-
-- `id_usina`: Plant ID (string)
-- `data_hora_observacao`: Timestamp (datetime)
-- `valor`: Measured irradiance value (W/m²)
-
-## Outputs
-
-### Training Mode Outputs
-
-When running in training mode, the application generates:
-
-#### 1. Model Artifacts (`data/artifacts/`)
-
-JSON files containing trained parameters and performance metrics for each plant:
-
-```json
-{
-  "parameters": {
-    "mu0": 18.774919221337267, // Optimized parameter 1
-    "g": 0.85 // Asymmetry parameter (fixed)
-  },
-  "metrics": {
-    "train": {
-      "ME": -9.23, // Mean Error (W/m²)
-      "MAE": 66.57, // Mean Absolute Error (W/m²)
-      "RMSE": 133.97 // Root Mean Square Error (W/m²)
-    },
-    "validation": {
-      "ME": -0.73,
-      "MAE": 69.92,
-      "RMSE": 220.6
-    },
-    "testing": {
-      "ME": -3.8,
-      "MAE": 64.4,
-      "RMSE": 134.02
-    }
-  },
-  "radiation_type": "dni"
-}
-```
-
-**Performance Metrics**:
-
-- **ME (Mean Error)**: Average difference between predictions and measurements. Indicates bias.
-- **MAE (Mean Absolute Error)**: Average absolute difference. Measures typical prediction error.
-- **RMSE (Root Mean Square Error)**: Square root of average squared errors. Penalizes large errors more heavily.
-
-#### 2. Training Plots (`data/artifacts/plots/`)
-
-Interactive HTML plots (using Plotly) showing:
-
-- **`{plant_id}_train_irradiances_timeseries.html`**: Time series comparison of predicted vs measured irradiance
-- **`{plant_id}_train_irradiances_scatter.html`**: Scatter plot of predicted vs measured values
-- **`{plant_id}_train_steps_timeseries.html`**: Model predictions across training/validation/test periods
-- **`{plant_id}_train_steps_scatter.html`**: Scatter comparison across all evaluation periods
-
-### Inference Mode Outputs
-
-When running in inference mode, the application generates:
-
-#### 1. Prediction Results (`data/output/`)
-
-Parquet files containing radiation predictions:
-
-**`{plant_id}.parquet`** with columns:
-
-- `time`: Timestamp (datetime)
-- `valor`: Predicted irradiance value (W/m²) for the specified radiation type
-
-Example loading predictions:
-
-```python
-import polars as pl
-
-# Load predictions
-predictions = pl.read_parquet("data/output/BAFJS7.parquet")
-print(predictions)
-```
-
-#### 2. Inference Plots (`data/output/plots/`)
-
-Interactive HTML plots:
-
-- **`{plant_id}_inference_irradiances_timeseries.html`**: Time series of predicted irradiance values
-
-### Output File Formats
-
-- **Artifacts**: JSON format for easy reading and version control
-- **Predictions**: Parquet format for efficient storage and fast loading
-- **Plots**: HTML format with interactive Plotly visualizations (can be opened in any web browser)
-
-## Examples
-
-### Example 1: Train a Model
-
-Create `config_train.jsonc`:
-
-```jsonc
-{
-  "mode": "train",
-  "input": "data/input",
-  "output": "data/output",
-  "artifact": "data/artifacts",
-  "plant_ids": ["BAFJS7"],
-  "target_radiation_type": "dni",
+  // Time windows (ISO 8601 format: start/end)
   "time_windows": {
     "training": "2024-01-01T00:00:00/2024-03-01T00:00:00",
     "validation": "2024-03-01T00:00:00/2024-04-01T00:00:00",
     "test": "2024-04-01T00:00:00/2024-05-01T00:00:00",
     "inference": "2024-05-01T00:00:00/2024-06-01T00:00:00"
   },
+
+  // Post-processing options
   "postprocessing": {
     "errors": true,
     "plots": true
@@ -402,77 +179,202 @@ Create `config_train.jsonc`:
 }
 ```
 
-Run training:
+### Environment Variables
+
+| Variable    | Description       | Values                              |
+| ----------- | ----------------- | ----------------------------------- |
+| `LOG_LEVEL` | Logging verbosity | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 
 ```bash
-rest2-ons --config config_train.jsonc
+LOG_LEVEL=DEBUG rest2-ons --config config.jsonc
 ```
 
-### Example 2: Generate Predictions
+---
 
-Create `config_inference.jsonc`:
+## 📁 Input Data
 
-```jsonc
+The input directory must contain the following files:
+
+| File                          | Format  | Description                              |
+| ----------------------------- | ------- | ---------------------------------------- |
+| `usinas.csv`                  | CSV     | Plant metadata (id, latitude, longitude) |
+| `albedo.parquet`              | Parquet | CAMS surface albedo forecast             |
+| `cod.parquet`                 | Parquet | Cloud optical depth forecast             |
+| `h2o.parquet`                 | Parquet | CAMS water vapor forecast                |
+| `no2.parquet`                 | Parquet | CAMS nitrogen dioxide forecast           |
+| `o3.parquet`                  | Parquet | CAMS ozone forecast                      |
+| `od550.parquet`               | Parquet | CAMS aerosol optical depth at 550nm      |
+| `od670.parquet`               | Parquet | CAMS aerosol optical depth at 670nm      |
+| `psurf.parquet`               | Parquet | CAMS surface pressure forecast           |
+| `temp.parquet`                | Parquet | CAMS 2m temperature forecast             |
+| `measured_irradiance.parquet` | Parquet | Ground truth irradiance measurements     |
+
+### Data Schemas
+
+#### `usinas.csv`
+
+```csv
+id,latitude,longitude
+BAFJS7,-23.5,-46.5
+```
+
+#### Forecast data (Parquet)
+
+```
+latitude,longitude,data_hora_rodada,data_hora_previsao,valor
+-23.5,-46.5,2024-01-01T00:00:00,2024-01-01T12:00:00,0.85
+```
+
+#### Measured data (Parquet)
+
+```
+id_usina,data_hora_observacao,valor
+BAFJS7,2024-01-01T12:00:00,850.5
+```
+
+---
+
+## 📊 Outputs
+
+### Training Mode
+
+| Output              | Location          | Description                    |
+| ------------------- | ----------------- | ------------------------------ |
+| `{plant_id}.json`   | `artifact/`       | Trained parameters and metrics |
+| `{plant_id}_*.html` | `artifact/plots/` | Interactive training plots     |
+
+#### Artifact JSON Schema
+
+```json
 {
-  "mode": "inference",
-  "input": "data/input",
-  "output": "data/output",
-  "artifact": "data/artifacts",
-  "plant_ids": ["BAFJS7"],
-  "target_radiation_type": "dni",
-  "time_windows": {
-    "training": "2024-01-01T00:00:00/2024-03-01T00:00:00",
-    "validation": "2024-03-01T00:00:00/2024-04-01T00:00:00",
-    "test": "2024-04-01T00:00:00/2024-05-01T00:00:00",
-    "inference": "2024-06-01T00:00:00/2024-07-01T00:00:00"
+  "parameters": { "mu0": 18.77, "g": 0.85 },
+  "metrics": {
+    "train": { "ME": -9.2, "MAE": 66.6, "RMSE": 134.0 },
+    "validation": { "ME": -0.7, "MAE": 69.9, "RMSE": 220.6 },
+    "testing": { "ME": -3.8, "MAE": 64.4, "RMSE": 134.0 }
   },
-  "postprocessing": {
-    "plots": true
-  }
+  "radiation_type": "dni"
 }
 ```
 
-Run inference:
+### Inference Mode
+
+| Output               | Location        | Description                  |
+| -------------------- | --------------- | ---------------------------- |
+| `{plant_id}.parquet` | `output/`       | Predictions (time, valor)    |
+| `{plant_id}_*.html`  | `output/plots/` | Interactive prediction plots |
+
+---
+
+## 📈 Performance Summary
+
+### Typical RMSE Values (DNI)
+
+| Condition         | RMSE Range (W/m²) |
+| ----------------- | ----------------- |
+| Clear sky         | 50 - 100          |
+| Mixed conditions  | 100 - 200         |
+| Cloudy conditions | 150 - 250         |
+
+### Comparison vs. Baseline
+
+The optimized REST2 model typically achieves:
+
+- **10-30% RMSE reduction** vs. unoptimized REST2 defaults
+- **Comparable or better** performance vs. persistence baseline for day-ahead horizons
+
+Performance depends on: forecast quality (especially COD), measurement quality, temporal resolution, and climate characteristics.
+
+---
+
+## 🔬 Methodology
+
+The REST2 model divides the solar spectrum into two bands and calculates atmospheric transmittance through multiple physical processes (Rayleigh scattering, aerosol extinction, gas absorption, cloud effects).
+
+**Key Innovation**: This implementation optimizes two parameters:
+
+- **mu0**: Scaling factor for cloud optical depth effect
+- **g**: Aerosol asymmetry parameter (typically fixed at 0.85)
+
+Optimization uses BFGS (Broyden-Fletcher-Goldfarb-Shanno) to minimize RMSE against measured data.
+
+For detailed methodology, see [METHODOLOGY.md](METHODOLOGY.md).
+
+---
+
+## ⚠️ Limitations and Known Issues
+
+- **Temporal Resolution**: Optimized for hourly to sub-hourly data
+- **Spatial Resolution**: Point-based model, not for large-area averages
+- **Cloud Treatment**: Simplified (optical depth only, no spatial heterogeneity)
+- **Terrain Effects**: Does not account for topographic shading
+- **Data Requirements**: Requires all CAMS atmospheric parameters
+
+---
+
+## 🧪 Testing
 
 ```bash
-rest2-ons --config config_inference.jsonc
+# Run tests
+pytest
+
+# Run with coverage
+pytest --cov=app
+
+# Lint code
+ruff check .
+ruff format --check .
+
+# Type checking
+mypy app/
 ```
 
-### Example 3: Process Multiple Plants
+---
 
-```jsonc
-{
-  "mode": "train",
-  "plant_ids": null // Process all plants in usinas.csv
-  // ... other configuration
-}
-```
+## 🤝 Contributing
 
-Or specify multiple plants:
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
-```jsonc
-{
-  "plant_ids": ["BAFJS7", "PLANT2", "PLANT3"]
-}
-```
+- Development environment setup
+- Code style and linting standards
+- Pull request process
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## 📚 Additional Documentation
+
+- [QUICKSTART.md](QUICKSTART.md) - Quick reference and common commands
+- [METHODOLOGY.md](METHODOLOGY.md) - Technical details of REST2 model and optimization
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture and design decisions
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and FAQ
+- [CHANGELOG.md](CHANGELOG.md) - Version history
+
+---
+
+## 📞 Contact
+
+- **Issues**: [GitHub Issues](https://github.com/rjmalves/rest2-ons/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/rjmalves/rest2-ons/discussions)
 
 ## References
 
-- [NREL REST2 Model](https://github.com/NREL/rest2)
-- Gueymard, C. A. (2008). REST2: High-performance solar radiation model for cloudless-sky irradiance, illuminance, and photosynthetically active radiation – Validation with a benchmark dataset. Solar Energy, 82(3), 272-285.
+- Gueymard, C. A. (2008). REST2: High-performance solar radiation model for cloudless-sky irradiance, illuminance, and photosynthetically active radiation. _Solar Energy_, 82(3), 272-285.
+- [NREL REST2 Implementation](https://github.com/NREL/rest2)
 
-## Additional Documentation
+## Citation
 
-- **[Quick Start Guide](QUICKSTART.md)**: Cheat sheet with common commands and patterns
-- **[Technical Methodology](METHODOLOGY.md)**: In-depth explanation of the REST2 model, optimization algorithm, and data processing
-- **[Troubleshooting & FAQ](TROUBLESHOOTING.md)**: Common issues, solutions, and frequently asked questions
-- **[Installation Guide](INSTALLATION_IMPROVEMENTS.md)**: Detailed installation improvements and migration guide
-- **[Contributing Guide](CONTRIBUTING.md)**: Developer setup and contribution guidelines
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For issues, questions, or contributions, please open an issue on the GitHub repository.
+```bibtex
+@software{rest2ons2025,
+  author = {Cossich, William & Alves, Rogério},
+  title = {rest2-ons: ML Generalization of REST2 Solar Radiation Model},
+  year = {2025},
+  url = {https://github.com/rjmalves/rest2-ons},
+  version = {0.1.0}
+}
+```

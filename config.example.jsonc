@@ -10,7 +10,7 @@
     "artifact": "data/artifacts",
     // The IDs of the plants to be processed (None = all plants)
     "plant_ids": [
-        "BAFJS7"
+        "BAFB11"
     ],
     // The forecasting day ahead
     "forecasting_day_ahead": 0,

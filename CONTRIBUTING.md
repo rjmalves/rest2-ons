@@ -1,168 +1,368 @@
 # Contributing to rest2-ons
 
-## Development Setup
+Thank you for your interest in contributing! This document provides guidelines for contributions to the project.
 
-If you're contributing to rest2-ons, you'll want to set up a development environment rather than installing the application system-wide.
+## 📋 Table of Contents
 
-### Development Installation
+- [How to Contribute](#how-to-contribute)
+- [Development Setup](#development-setup)
+- [Code Standards](#code-standards)
+- [Testing](#testing)
+- [Documentation](#documentation)
+- [Pull Request Process](#pull-request-process)
 
-1. **Clone the repository:**
+---
 
-   ```bash
-   git clone https://github.com/rjmalves/rest2-ons.git
-   cd rest2-ons
-   ```
+## 🤝 How to Contribute
 
-2. **Create a virtual environment:**
+### Reporting Bugs
 
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+1. Check if the bug has already been reported in [Issues](https://github.com/rjmalves/rest2-ons/issues)
+2. If not found, create a new issue using the bug report template
+3. Include:
+   - Clear description of the problem
+   - Steps to reproduce
+   - Expected vs. observed behavior
+   - Python version and package version
+   - Error logs (if applicable)
 
-3. **Install in editable mode:**
+### Suggesting Improvements
 
-   ```bash
-   pip install --upgrade pip setuptools wheel
-   pip install -e .
-   ```
+1. Open an issue using the feature request template
+2. Describe:
+   - The problem the improvement solves
+   - The proposed solution
+   - Alternatives considered
 
-4. **Configure environment:**
+### Contributing Code
 
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
+1. Fork the repository
+2. Create a branch for your feature (`git checkout -b feature/my-feature`)
+3. Make atomic commits with descriptive messages
+4. Write/update tests for your changes
+5. Ensure all tests pass
+6. Open a Pull Request
 
-5. **Run from development environment:**
-   ```bash
-   rest2-ons --config config.example.jsonc
-   ```
+---
+
+## 🛠️ Development Setup
+
+### Prerequisites
+
+- Python >= 3.11
+- Git
+- Visual Studio Code (recommended) or other IDE
+
+### Initial Setup
+
+```bash
+# Clone your fork
+git clone https://github.com/YOUR_USERNAME/rest2-ons.git
+cd rest2-ons
+
+# Add upstream remote
+git remote add upstream https://github.com/rjmalves/rest2-ons.git
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install in editable mode with dev dependencies
+pip install --upgrade pip setuptools wheel
+pip install -e ".[dev]"
+
+# Or install dev dependencies manually
+pip install -e .
+pip install pytest pytest-cov ruff mypy
+```
+
+### Verifying Installation
+
+```bash
+# Run the application
+rest2-ons --help
+
+# Run tests
+pytest
+
+# Run linter
+ruff check .
+```
 
 ### Development vs Production Installation
 
-**Development** (`pip install -e .`):
+| Aspect       | Development (`pip install -e .`)       | Production (`./setup.sh`)                |
+| ------------ | -------------------------------------- | ---------------------------------------- |
+| Installation | Editable - changes reflect immediately | Standard - code is copied                |
+| Location     | Local `venv/` directory                | `/opt/rest2-ons` or `~/.local/rest2-ons` |
+| Use case     | Development, testing, debugging        | End-users, production                    |
 
-- Editable installation - changes to code are immediately reflected
-- Installed in local `venv/` directory
-- Use for development, testing, debugging
-- Easy to modify and experiment
+---
 
-**Production** (`./setup.sh`):
+## 📐 Code Standards
 
-- Standard installation - code is copied to installation directory
-- Installed in `/opt/rest2-ons` or `~/.local/rest2-ons`
-- Use for end-users and production deployments
-- Isolated from source code
+### Style
+
+We follow [PEP 8](https://peps.python.org/pep-0008/) with configurations in `pyproject.toml`:
+
+```toml
+# Main settings:
+# - Max line length: 80 characters
+# - Imports: sorted by isort rules
+# - Formatting: ruff format
+```
+
+### Style Verification
+
+```bash
+# Run linter
+ruff check .
+
+# Auto-fix issues
+ruff check --fix .
+
+# Format code
+ruff format .
+
+# Check formatting without changes
+ruff format --check .
+```
+
+### Python Best Practices
+
+#### 1. Small, Pure Functions
+
+```python
+# ✅ Good: focused function, no side effects
+def calculate_rmse(observed: np.ndarray, predicted: np.ndarray) -> float:
+    """Calculate Root Mean Square Error."""
+    if len(observed) != len(predicted):
+        raise ValueError("Arrays must have same length")
+    return np.sqrt(np.mean((observed - predicted) ** 2))
+
+# ❌ Avoid: large functions with multiple responsibilities
+```
+
+#### 2. Input Validation
+
+```python
+# ✅ Good: validate types and dimensions
+def process_data(df: pl.DataFrame, column: str) -> pl.DataFrame:
+    if column not in df.columns:
+        raise ValueError(f"Column '{column}' not found in DataFrame")
+    # ...
+```
+
+#### 3. Type Hints
+
+```python
+# ✅ Good: use type hints for public APIs
+def train_model(
+    data: pl.DataFrame,
+    target_column: str,
+    learning_rate: float = 0.01,
+) -> dict[str, float]:
+    """Train model and return metrics."""
+    ...
+```
+
+#### 4. Error Handling
+
+```python
+# ✅ Good: informative error messages
+if data.is_empty():
+    raise ValueError(
+        f"No data found for plant '{plant_id}' "
+        f"in period {start_date} to {end_date}"
+    )
+```
+
+---
+
+## 🧪 Testing
+
+### Test Structure
+
+```
+tests/
+├── conftest.py          # Shared fixtures
+├── fixtures/            # Test data files
+├── test_readers.py
+├── test_train.py
+├── test_inference.py
+└── test_utils.py
+```
+
+### Writing Tests
+
+```python
+def test_calculate_rmse_returns_expected_value():
+    # Arrange: prepare data
+    observed = np.array([1.0, 2.0, 3.0])
+    predicted = np.array([1.1, 2.1, 3.1])
+
+    # Act: execute function
+    result = calculate_rmse(observed, predicted)
+
+    # Assert: verify result
+    assert result == pytest.approx(0.1, rel=1e-6)
+
+
+def test_calculate_rmse_raises_on_mismatched_arrays():
+    with pytest.raises(ValueError, match="same length"):
+        calculate_rmse(np.array([1, 2]), np.array([1, 2, 3]))
+```
 
 ### Running Tests
 
 ```bash
-# Activate your development environment
-source venv/bin/activate
-
-# Run tests (when available)
+# All tests
 pytest
 
-# Run with coverage
-pytest --cov=app
+# Specific test file
+pytest tests/test_train.py
+
+# With coverage
+pytest --cov=app --cov-report=html
+
+# Verbose output
+pytest -v
 ```
 
-### Code Quality
+### Coverage Requirements
 
-Before submitting a pull request:
+- New public functions must have tests
+- Edge cases (None, empty, wrong types) should be tested
+- Tests must be independent and reproducible
 
-1. **Format your code:**
+---
 
-   ```bash
-   # The project uses ruff for linting
-   ruff check .
-   ruff format .
-   ```
+## 📝 Documentation
 
-2. **Check types (if using type hints):**
+### Docstrings
 
-   ```bash
-   mypy app/
-   ```
+All public functions and classes must have complete documentation:
 
-3. **Run tests:**
-   ```bash
-   pytest
-   ```
+```python
+def train_plant(
+    plant_id: str,
+    data: pl.DataFrame,
+    config: TrainConfig,
+) -> TrainResult:
+    """Train REST2 model parameters for a single plant.
 
-### Testing the Installation Script
+    Optimizes mu0 and g parameters using BFGS minimization
+    to minimize RMSE against measured irradiance data.
 
-If you're modifying `setup.sh`, test both installation modes:
+    Args:
+        plant_id: Unique identifier for the plant.
+        data: DataFrame with atmospheric parameters and measured values.
+        config: Training configuration including time windows.
 
-1. **Test user installation:**
+    Returns:
+        TrainResult containing optimized parameters and metrics.
 
-   ```bash
-   ./setup.sh --user
-   rest2-ons --help
-   ./setup.sh --user --uninstall
-   ```
+    Raises:
+        ValueError: If plant_id not found in data.
+        OptimizationError: If BFGS optimization fails to converge.
 
-2. **Test system installation (in a VM or container recommended):**
-   ```bash
-   sudo ./setup.sh
-   rest2-ons --help
-   sudo ./setup.sh --uninstall
-   ```
-
-### Project Structure
-
-```
-rest2-ons/
-├── app/                    # Main application package
-│   ├── internal/          # Internal configuration and constants
-│   ├── services/          # Service modules
-│   └── utils/             # Utility functions
-├── data/                  # Data files
-│   ├── artifacts/         # Generated artifacts
-│   ├── input/            # Input data
-│   └── output/           # Output results
-├── scripts/               # Utility scripts
-├── main.py               # Application entry point
-├── pyproject.toml        # Project configuration
-├── setup.sh              # Installation script
-└── README.md             # Documentation
+    Example:
+        >>> result = train_plant("BAFJS7", data, config)
+        >>> print(f"RMSE: {result.metrics['train']['RMSE']}")
+    """
 ```
 
-### Making Changes
+### Updating Documentation
 
-1. **Create a feature branch:**
+```bash
+# After changing public APIs, update relevant docs:
+# - README.md for user-facing changes
+# - METHODOLOGY.md for algorithm changes
+# - TROUBLESHOOTING.md for new error cases
+```
+
+---
+
+## 🔄 Pull Request Process
+
+### Before Opening PR
+
+1. **Sync with upstream**
 
    ```bash
-   git checkout -b feature/your-feature-name
+   git fetch upstream
+   git rebase upstream/main
    ```
 
-2. **Make your changes and commit:**
+2. **Run local checks**
 
    ```bash
-   git add .
-   git commit -m "Description of your changes"
+   ruff check .           # Linting passes
+   ruff format --check .  # Formatting correct
+   pytest                 # Tests pass
+   mypy app/              # Type checking (if enabled)
    ```
 
-3. **Push and create a pull request:**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
+3. **Organized commits**
+   - Descriptive messages in English
+   - One commit per logical change
+   - Format: `type: short description`
+     - `feat:` new functionality
+     - `fix:` bug fix
+     - `docs:` documentation
+     - `test:` tests
+     - `refactor:` refactoring
 
-### Release Process
+### PR Template
 
-For maintainers preparing a new release:
+```markdown
+## Description
 
-1. **Update version in `app/__init__.py`**
-2. **Update CHANGELOG.md**
-3. **Tag the release:**
-   ```bash
-   git tag -a v1.0.0 -m "Release version 1.0.0"
-   git push origin v1.0.0
-   ```
-4. **Test installation from the tag**
-5. **Create GitHub release**
+Brief description of changes.
 
-## Questions?
+## Type of Change
 
-If you have questions about development setup or contributing, please open an issue on GitHub.
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation
+
+## Checklist
+
+- [ ] Tests added/updated
+- [ ] Documentation updated
+- [ ] `ruff check .` passes
+- [ ] Code follows project standards
+
+## Related Issues
+
+Closes #123
+```
+
+### Review
+
+- PRs require at least 1 approval
+- CI must pass (tests, lint)
+- Discussions must be resolved before merge
+
+---
+
+## 🏷️ Versioning
+
+We follow [Semantic Versioning](https://semver.org/):
+
+- **MAJOR**: incompatible API changes
+- **MINOR**: new backwards-compatible functionality
+- **PATCH**: backwards-compatible bug fixes
+
+Update `app/__init__.py` and `CHANGELOG.md` when releasing versions.
+
+---
+
+## ❓ Questions?
+
+- Open a [Discussion](https://github.com/rjmalves/rest2-ons/discussions) for general questions
+- Use [Issues](https://github.com/rjmalves/rest2-ons/issues) for bugs and features
+- Consult existing documentation
+
+Thank you for contributing! 🎉

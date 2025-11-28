@@ -17,6 +17,8 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "requests>=2.32.4",
     "statsmodels>=0.14.5",
+    "boto3>=1.35.0",
+    "s3fs>=2024.10.0"
 ]
 
 [tool.hatch.version]
@@ -28,8 +30,25 @@ include = [
   "main.py"
 ]
 
-[tool.ruff]
-line-length = 80
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.1",
+    "pytest-cov>=7.0.0",
+    "pytest-xdist>=3.8.0",
+    "moto[s3]>=5.1.17",
+    "scipy>=1.16.3",
+    "mypy>=1.18.2",
+    "pandas-stubs>=2.3.2.250926",
+    "boto3-stubs>=1.41.3",
+    "ruff>=0.14.6",
+]
 
 [project.scripts]
 rest2-ons = "main:main"
+
+[tool.ruff]
+line-length = 80
+target-version = "py312"
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]

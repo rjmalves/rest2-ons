@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from traceback import print_exc
 
 import pandas as pd
 import pytz
@@ -60,13 +61,17 @@ plant_df = pd.read_csv("data/input/usinas.csv")
 
 dfs = []
 for plant_id in plant_df["id_usina"].unique():
+    # if plant_id not in ["PEUFSU", "PIESMO"]:
+    #     continue
     print(f"Processing plant {plant_id}...")
 
     try:
         measured = MeasuredData(
             plant_id,
-            datetime(2023, 5, 31, 21, 0, 0),
             datetime(2024, 9, 5, 21, 0, 0),
+            datetime(2025, 2, 27, 21, 0, 0),
+            # datetime(2021, 12, 31, 21, 0, 0),
+            # datetime(2024, 9, 5, 21, 0, 0),
         )
         df = measured.data.to_dataframe("valor").reset_index()
         df = df.rename(columns={"time": "data_hora_observacao"})
@@ -75,6 +80,7 @@ for plant_id in plant_df["id_usina"].unique():
         dfs.append(df)
     except Exception as e:
         print(f"Error processing plant {plant_id}: {e}")
+        print_exc()
 
 
 df = pd.concat(dfs, ignore_index=True)
