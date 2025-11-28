@@ -13,11 +13,11 @@ Desenvolvido pelo [Operador Nacional do Sistema Elétrico (ONS)](https://www.ons
 
 ## 📋 Visão Geral
 
-Esta aplicação implementa uma generalização por aprendizado de máquina do [modelo de radiação REST2 (Reference Evaluation of Solar Transmittance, 2-band)](https://github.com/NREL/rest2) desenvolvido pelo NREL. Introduz parâmetros ajustáveis otimizados usando dados medidos in-loco, tornando-o adaptável para locais e condições específicas.
+Esta aplicação implementa uma generalização por aprendizado de máquina do [modelo de radiação REST2 (Reference Evaluation of Solar Transmittance, 2-band)](https://github.com/NREL/rest2) desenvolvido pelo NREL, considerando condições de céu claro e com nebulosidade. Introduz parâmetros ajustáveis otimizados usando dados medidos in-loco, tornando-o adaptável para locais e condições específicas.
 
 1. **Treina** modelos de regressão usando histórico de irradiância medida e previsões atmosféricas
-2. **Otimiza** parâmetros do modelo REST2 (`mu0`, `g`) para minimizar RMSE contra dados reais
-3. **Gera** previsões de irradiância solar (GHI, DNI, DHI) para operação
+2. **Otimiza** os parâmetros associados a adaptação do modelo REST2 para considerar a nebulosidade (`mu0`, `g`) a fim de minimizar RMSE contra dados reais
+3. **Gera** previsões de irradiância solar em condições de céu claro e com nebulosidade (GHI, DNI, DHI) para operação
 4. **Exporta** previsões, métricas de performance e gráficos interativos
 
 ### Casos de Uso
@@ -58,7 +58,7 @@ Esta aplicação implementa uma generalização por aprendizado de máquina do [
 │                        MODO: INFERENCE (inference.py)                      │
 │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐  │
 │  │ Carregar         │  │ Aplicar Modelo   │  │ Gerar Previsões          │  │
-│  │ Parâmetros       │→ │ REST2            │→ │ & Gráficos               │  │
+│  │ Parâmetros       │→ │ REST2 adaptado   │→ │ & Gráficos               │  │
 │  └──────────────────┘  └──────────────────┘  └───────────┬──────────────┘  │
 │                                                          │                 │
 │                                                          ▼                 │
@@ -71,15 +71,15 @@ Esta aplicação implementa uma generalização por aprendizado de máquina do [
 
 ### Componentes Principais
 
-| Módulo             | Descrição                                              |
-| ------------------ | ------------------------------------------------------ |
-| `app/train.py`     | Pipeline de treinamento com otimização BFGS            |
-| `app/inference.py` | Pipeline de previsão usando parâmetros treinados       |
-| `app/readers.py`   | Leitura de dados de arquivos Parquet/CSV               |
-| `app/writers.py`   | Geração de saídas (Parquet, JSON, gráficos HTML)       |
-| `app/storage/`     | Abstração de storage (local/S3)                        |
-| `app/services/`    | Implementação do modelo REST2 e geometria solar        |
-| `app/utils/`       | Funções utilitárias (métricas, plots, limites)         |
+| Módulo             | Descrição                                                |
+| ------------------ | -------------------------------------------------------- |
+| `app/train.py`     | Pipeline de treinamento com otimização BFGS              |
+| `app/inference.py` | Pipeline de previsão usando parâmetros treinados         |
+| `app/readers.py`   | Leitura de dados de arquivos Parquet/CSV                 |
+| `app/writers.py`   | Geração de saídas (Parquet, JSON, gráficos HTML)         |
+| `app/storage/`     | Abstração de storage (local/S3)                          |
+| `app/services/`    | Implementação do modelo REST2 adaptado e geometria solar |
+| `app/utils/`       | Funções utilitárias (métricas, plots, limites)           |
 
 ---
 
@@ -144,8 +144,8 @@ rest2-ons --config <ARQUIVO_CONFIG>
 rest2-ons --help
 ```
 
-| Argumento  | Descrição                               | Default     |
-| ---------- | --------------------------------------- | ----------- |
+| Argumento  | Descrição                                  | Default     |
+| ---------- | ------------------------------------------ | ----------- |
 | `--config` | Caminho para arquivo de configuração JSONC | Obrigatório |
 
 ### Arquivo de Configuração (`config.jsonc`)
@@ -202,19 +202,19 @@ rest2-ons --config config.jsonc
 
 O diretório de entrada deve conter os seguintes arquivos:
 
-| Arquivo                       | Formato | Descrição                                |
-| ----------------------------- | ------- | ---------------------------------------- |
-| `usinas.csv`                  | CSV     | Metadados das usinas (id, lat, lon)      |
-| `albedo.parquet`              | Parquet | Previsão de albedo de superfície (CAMS)  |
-| `cod.parquet`                 | Parquet | Previsão de profundidade óptica de nuvens|
-| `h2o.parquet`                 | Parquet | Previsão de vapor d'água (CAMS)          |
-| `no2.parquet`                 | Parquet | Previsão de dióxido de nitrogênio (CAMS) |
-| `o3.parquet`                  | Parquet | Previsão de ozônio (CAMS)                |
-| `od550.parquet`               | Parquet | Profundidade óptica de aerossóis 550nm   |
-| `od670.parquet`               | Parquet | Profundidade óptica de aerossóis 670nm   |
-| `psurf.parquet`               | Parquet | Previsão de pressão de superfície (CAMS) |
-| `temp.parquet`                | Parquet | Previsão de temperatura 2m (CAMS)        |
-| `measured_irradiance.parquet` | Parquet | Medições de irradiância in-loco          |
+| Arquivo                       | Formato | Descrição                                 |
+| ----------------------------- | ------- | ----------------------------------------- |
+| `usinas.csv`                  | CSV     | Metadados das usinas (id, lat, lon)       |
+| `albedo.parquet`              | Parquet | Previsão de albedo de superfície (CAMS)   |
+| `cod.parquet`                 | Parquet | Previsão de profundidade óptica de nuvens |
+| `h2o.parquet`                 | Parquet | Previsão de vapor d'água (CAMS)           |
+| `no2.parquet`                 | Parquet | Previsão de dióxido de nitrogênio (CAMS)  |
+| `o3.parquet`                  | Parquet | Previsão de ozônio (CAMS)                 |
+| `od550.parquet`               | Parquet | Profundidade óptica de aerossóis 550nm    |
+| `od670.parquet`               | Parquet | Profundidade óptica de aerossóis 670nm    |
+| `psurf.parquet`               | Parquet | Previsão de pressão de superfície (CAMS)  |
+| `temp.parquet`                | Parquet | Previsão de temperatura 2m (CAMS)         |
+| `measured_irradiance.parquet` | Parquet | Medições de irradiância in-loco           |
 
 ### Schemas de Dados
 
@@ -245,10 +245,10 @@ BAFJS7,2024-01-01T12:00:00,850.5
 
 ### Modo Training
 
-| Saída               | Localização       | Descrição                          |
-| ------------------- | ----------------- | ---------------------------------- |
-| `{usina}.json`      | `artifact/`       | Parâmetros treinados e métricas    |
-| `{usina}_*.html`    | `artifact/plots/` | Gráficos interativos de treinamento|
+| Saída            | Localização       | Descrição                           |
+| ---------------- | ----------------- | ----------------------------------- |
+| `{usina}.json`   | `artifact/`       | Parâmetros treinados e métricas     |
+| `{usina}_*.html` | `artifact/plots/` | Gráficos interativos de treinamento |
 
 #### Schema do Artefato JSON
 
@@ -266,31 +266,10 @@ BAFJS7,2024-01-01T12:00:00,850.5
 
 ### Modo Inference
 
-| Saída              | Localização     | Descrição                         |
-| ------------------ | --------------- | --------------------------------- |
-| `{usina}.parquet`  | `output/`       | Previsões (time, valor)           |
-| `{usina}_*.html`   | `output/plots/` | Gráficos interativos de previsão  |
-
----
-
-## 📈 Resumo de Performance
-
-### Valores Típicos de RMSE (DNI)
-
-| Condição          | Faixa RMSE (W/m²) |
-| ----------------- | ----------------- |
-| Céu limpo         | 50 - 100          |
-| Condições mistas  | 100 - 200         |
-| Céu nublado       | 150 - 250         |
-
-### Comparação com Baselines
-
-O modelo REST2 otimizado tipicamente atinge:
-
-- **Redução de 10-30% no RMSE** vs. REST2 com parâmetros default
-- **Performance comparável ou superior** vs. baseline de persistência
-
-Performance depende de: qualidade das previsões (especialmente COD), qualidade das medições, resolução temporal e características climáticas.
+| Saída             | Localização     | Descrição                        |
+| ----------------- | --------------- | -------------------------------- |
+| `{usina}.parquet` | `output/`       | Previsões (time, valor)          |
+| `{usina}_*.html`  | `output/plots/` | Gráficos interativos de previsão |
 
 ---
 
@@ -298,7 +277,7 @@ Performance depende de: qualidade das previsões (especialmente COD), qualidade 
 
 O modelo REST2 divide o espectro solar em duas bandas e calcula a transmitância atmosférica através de múltiplos processos físicos (espalhamento Rayleigh, extinção por aerossóis, absorção por gases, efeitos de nuvens).
 
-**Inovação Principal**: Esta implementação otimiza dois parâmetros:
+**Inovação Principal**: Esta implementação considera uma adaptação do modelo REST2 para gerar previsões de irradiância em condições de nebulosidade, e otimiza dois parâmetros de tal adaptação:
 
 - **mu0**: Fator de escala para efeito da profundidade óptica de nuvens
 - **g**: Parâmetro de assimetria de aerossóis (tipicamente fixo em 0.85)
@@ -315,7 +294,7 @@ Para metodologia detalhada, veja [METHODOLOGY.md](METHODOLOGY.md).
 - **Resolução Espacial**: Modelo pontual, não para médias de grandes áreas
 - **Tratamento de Nuvens**: Simplificado (apenas profundidade óptica)
 - **Efeitos de Terreno**: Não considera sombreamento topográfico
-- **Requisitos de Dados**: Requer todos os parâmetros atmosféricos CAMS
+- **Requisitos de Dados**: Requer todos os parâmetros atmosféricos e de concentração de gases, que podem ser obtidos do sistema/modelo europeu CAMS/ECMWF
 
 ---
 
