@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 import polars as pl
 
@@ -29,7 +30,7 @@ class InferenceManager:
     def __init__(self, config: Config, reader: InputData):
         self.config = config
         self.reader = reader
-        self._plants = None
+        self._plants: Optional[pl.DataFrame] = None
 
     @property
     def plants(self) -> pl.DataFrame:

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 import polars as pl
 
@@ -57,7 +58,7 @@ class TrainManager:
     def __init__(self, config: Config, reader: InputData):
         self.config = config
         self.reader = reader
-        self._plants = None
+        self._plants: Optional[pl.DataFrame] = None
 
     @property
     def plants(self) -> pl.DataFrame:
@@ -175,6 +176,7 @@ class TrainManager:
 
     def train(self) -> dict[str, PlantResult]:
         results = {}
-        for plant_id in self.config.plant_ids:
+        plant_ids = self.config.plant_ids or []
+        for plant_id in plant_ids:
             results[plant_id] = self._train_for_plant(plant_id)
         return results

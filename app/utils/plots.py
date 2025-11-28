@@ -1,9 +1,9 @@
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import plotly.io as pio
+import plotly.express as px  # type: ignore[import-untyped]
+import plotly.graph_objects as go  # type: ignore[import-untyped]
+import plotly.io as pio  # type: ignore[import-untyped]
 import polars as pl
-from plotly.subplots import make_subplots
+from plotly.subplots import make_subplots  # type: ignore[import-untyped]
 
 from app.inference import PlantResult as PlantInferenceResult
 from app.internal.constants import (
@@ -29,7 +29,7 @@ IRRADIANCE_COLUMNS = ["ghi", "dni", "dhi", "ghi_tracker"]
 def _plant_train_result_with_irradiances_to_df(
     result: PlantTrainResult,
 ) -> pd.DataFrame:
-    final_df = None
+    final_df: pd.DataFrame | None = None
     for radiation_type in IRRADIANCE_COLUMNS:
         df = result.train.radiation.get(radiation_type).to_pandas()
         df["step"] = "train"
@@ -48,13 +48,15 @@ def _plant_train_result_with_irradiances_to_df(
             final_df = pd.merge(
                 final_df, df.drop(columns=["step"]), on=["time"], how="inner"
             )
+    if final_df is None:
+        raise ValueError("No radiation data found")
     return final_df
 
 
 def _plant_inference_result_with_irradiances_to_df(
     result: PlantInferenceResult,
 ) -> pd.DataFrame:
-    final_df = None
+    final_df: pd.DataFrame | None = None
     for radiation_type in IRRADIANCE_COLUMNS:
         df = result.radiation.get(radiation_type).to_pandas()
         df["step"] = "inference"
@@ -65,6 +67,8 @@ def _plant_inference_result_with_irradiances_to_df(
             final_df = pd.merge(
                 final_df, df.drop(columns=["step"]), on=["time"], how="inner"
             )
+    if final_df is None:
+        raise ValueError("No radiation data found")
     return final_df
 
 

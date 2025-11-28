@@ -29,11 +29,11 @@ class LocationInputData:
     temp2m: pl.DataFrame
 
     # Derived fields (computed from raw data)
-    angstrom_exponent: pl.DataFrame = None
+    angstrom_exponent: Optional[pl.DataFrame] = None
 
     # Metadata
-    time_range: tuple[datetime, datetime] = None
-    forecasting_day: int = None
+    time_range: Optional[tuple[datetime, datetime]] = None
+    forecasting_day: Optional[int] = None
 
     def apply_unit_conversions(self) -> "LocationInputData":
         self.o3 = self.o3.with_columns(
@@ -96,7 +96,7 @@ class LocationInputData:
             )
         return self
 
-    def get_rest2_inputs(self) -> Dict[str, pl.DataFrame]:
+    def get_rest2_inputs(self) -> Dict[str, object]:
         return {
             "angstrom_exponent": self.angstrom_exponent,
             "pressure": self.psurf,
@@ -186,7 +186,9 @@ class InputData:
         else:
             raise ValueError(f"Unsupported file format for file: {filename}")
 
-    def read_usinas(self, ids_usinas: list = None) -> pl.DataFrame:
+    def read_usinas(
+        self, ids_usinas: Optional[list[str]] = None
+    ) -> pl.DataFrame:
         if ids_usinas is None:
             return self._read("usinas.csv", {})
         return self._read("usinas.csv", {"id_usina": ids_usinas})
@@ -267,7 +269,9 @@ class InputData:
             latitude=latitude,
             longitude=longitude,
             **input_data,
-            time_range=(start_date, end_date),
+            time_range=(start_date, end_date)
+            if start_date and end_date
+            else None,
             forecasting_day=forecasting_day,
         )
 

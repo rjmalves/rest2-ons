@@ -1,10 +1,14 @@
+from typing import Union
+
 import numpy as np
 import polars as pl
-from scipy.optimize import minimize
+from scipy.optimize import minimize  # type: ignore[import-untyped]
 
 from app.readers import LocationInputData
 from app.utils.metrics import mae, me, rmse
 from app.utils.utils import extraterrestrial_radiation
+
+ArrayLike = Union[np.ndarray, float, int]
 
 
 class AirMassResults:
@@ -28,19 +32,19 @@ class AirMassResults:
 class BandRadiationResults:
     def __init__(
         self,
-        TR: np.ndarray,
-        Tg: np.ndarray,
-        To: np.ndarray,
-        Tn: np.ndarray,
-        Tw: np.ndarray,
-        TA: np.ndarray,
-        Tn166: np.ndarray,
-        Tw166: np.ndarray,
-        BR: np.ndarray,
-        F: np.ndarray,
-        TAS: np.ndarray,
-        rs: np.ndarray,
-        Ba: np.ndarray | None = None,
+        TR: ArrayLike,
+        Tg: ArrayLike,
+        To: ArrayLike,
+        Tn: ArrayLike,
+        Tw: ArrayLike,
+        TA: ArrayLike,
+        Tn166: ArrayLike,
+        Tw166: ArrayLike,
+        BR: ArrayLike,
+        F: ArrayLike,
+        TAS: ArrayLike,
+        rs: ArrayLike,
+        Ba: ArrayLike | None = None,
     ):
         self.TR = TR
         self.Tg = Tg
@@ -124,50 +128,72 @@ class REST2:
 
     DEFAULT_PARAMETERS = {"mu0": 0.0, "g": 0.85}
 
+    # Instance attributes (typed as they are after __init__ completes)
+    cod: np.ndarray
+    surface_albedo: np.ndarray
+    angstrom_exponent: np.ndarray
+    pressure: np.ndarray
+    water_vapour: np.ndarray
+    ozone: np.ndarray
+    nitrogen_dioxide: np.ndarray
+    optical_depth_550nm: np.ndarray
+    lat: float
+    lon: float
+    extraterrestrial_radiation: np.ndarray
+    zenith_angle: np.ndarray
+    time_steps: pl.Series
+
     def __init__(self, location_data: LocationInputData):
-        self.cod = location_data.cod
-        self.surface_albedo = location_data.albedo
-        self.angstrom_exponent = location_data.angstrom_exponent
-        self.pressure = location_data.psurf
-        self.water_vapour = location_data.h2o
-        self.ozone = location_data.o3
-        self.nitrogen_dioxide = location_data.no2
-        self.optical_depth_550nm = location_data.od550
+        # Start with DataFrames
+        _cod = location_data.cod
+        _surface_albedo = location_data.albedo
+        _angstrom_exponent = location_data.angstrom_exponent
+        _pressure = location_data.psurf
+        _water_vapour = location_data.h2o
+        _ozone = location_data.o3
+        _nitrogen_dioxide = location_data.no2
+        _optical_depth_550nm = location_data.od550
         self.lat = location_data.latitude
         self.lon = location_data.longitude
 
+        # Generate solar data
         self.extraterrestrial_radiation, self.zenith_angle = (
-            self._generate_solar_data()
+            extraterrestrial_radiation(
+                _cod["time"].to_numpy(), self.lat, self.lon
+            )
         )
 
-        self._apply_variable_bounds()
-        self._prepare_variables()
-
-    def _apply_variable_bounds(self):
-        self.angstrom_exponent = self.angstrom_exponent.with_columns(
+        # Apply variable bounds
+        if _angstrom_exponent is None:
+            raise ValueError("angstrom_exponent must not be None")
+        _angstrom_exponent = _angstrom_exponent.with_columns(
             pl.col("valor").clip(*self.ANGSTROM_EXPONENT_BOUNDS)
         )
-        self.pressure = self.pressure.with_columns(
+        _pressure = _pressure.with_columns(
             pl.col("valor").clip(*self.SURFACE_PRESSURE_BOUNDS)
         )
-        self.water_vapour = self.water_vapour.with_columns(
+        _water_vapour = _water_vapour.with_columns(
             pl.col("valor").clip(*self.WATER_VAPOUR_BOUNDS)
         )
-        self.ozone = self.ozone.with_columns(
-            pl.col("valor").clip(*self.OZONE_BOUNDS)
-        )
-        self.nitrogen_dioxide = self.nitrogen_dioxide.with_columns(
+        _ozone = _ozone.with_columns(pl.col("valor").clip(*self.OZONE_BOUNDS))
+        _nitrogen_dioxide = _nitrogen_dioxide.with_columns(
             pl.col("valor").clip(*self.NITROGEN_DIOXIDE_BOUNDS)
         )
-        self.surface_albedo = self.surface_albedo.with_columns(
+        _surface_albedo = _surface_albedo.with_columns(
             pl.col("valor").clip(*self.SURFACE_ALBEDO_BOUNDS)
         )
-        self.cod = self.cod.with_columns(pl.col("valor").clip(*self.COD_BOUNDS))
+        _cod = _cod.with_columns(pl.col("valor").clip(*self.COD_BOUNDS))
 
-    def _generate_solar_data(self):
-        return extraterrestrial_radiation(
-            self.cod["time"].to_numpy(), self.lat, self.lon
-        )
+        # Prepare variables - convert to numpy arrays
+        self.angstrom_exponent = self._prepare_variable(_angstrom_exponent)
+        self.pressure = self._prepare_variable(_pressure)
+        self.water_vapour = self._prepare_variable(_water_vapour)
+        self.ozone = self._prepare_variable(_ozone)
+        self.nitrogen_dioxide = self._prepare_variable(_nitrogen_dioxide)
+        self.surface_albedo = self._prepare_variable(_surface_albedo)
+        self.optical_depth_550nm = self._prepare_variable(_optical_depth_550nm)
+        self.time_steps = _cod.sort("time")["time"]
+        self.cod = np.nan_to_num(self._prepare_variable(_cod))
 
     def _prepare_variable(
         self,
@@ -175,20 +201,6 @@ class REST2:
     ) -> np.ndarray:
         variable = variable.sort("time")
         return variable["valor"].to_numpy()
-
-    def _prepare_variables(self):
-        self.angstrom_exponent = self._prepare_variable(self.angstrom_exponent)
-        self.pressure = self._prepare_variable(self.pressure)
-        self.water_vapour = self._prepare_variable(self.water_vapour)
-        self.ozone = self._prepare_variable(self.ozone)
-        self.nitrogen_dioxide = self._prepare_variable(self.nitrogen_dioxide)
-        self.surface_albedo = self._prepare_variable(self.surface_albedo)
-        self.optical_depth_550nm = self._prepare_variable(
-            self.optical_depth_550nm
-        )
-        self.time_steps = self.cod["time"]
-        self.cod = self._prepare_variable(self.cod)
-        self.cod = np.nan_to_num(self.cod)
 
     def _postprocess_variable(self, variable: np.ndarray) -> pl.DataFrame:
         return pl.DataFrame({"time": self.time_steps, "valor": variable})
@@ -204,17 +216,24 @@ class REST2:
         dni_cs: np.ndarray,
         dhi_cs: np.ndarray,
     ) -> REST2Result:
-        ghi = self._postprocess_variable(ghi)
-        ghi_tracker = self._postprocess_variable(ghi_tracker)
-        dni = self._postprocess_variable(dni)
-        dhi = self._postprocess_variable(dhi)
-        ghi_cs = self._postprocess_variable(ghi_cs)
-        ghi_tracker_cs = self._postprocess_variable(ghi_tracker_cs)
-        dni_cs = self._postprocess_variable(dni_cs)
-        dhi_cs = self._postprocess_variable(dhi_cs)
+        ghi_df = self._postprocess_variable(ghi)
+        ghi_tracker_df = self._postprocess_variable(ghi_tracker)
+        dni_df = self._postprocess_variable(dni)
+        dhi_df = self._postprocess_variable(dhi)
+        ghi_cs_df = self._postprocess_variable(ghi_cs)
+        ghi_tracker_cs_df = self._postprocess_variable(ghi_tracker_cs)
+        dni_cs_df = self._postprocess_variable(dni_cs)
+        dhi_cs_df = self._postprocess_variable(dhi_cs)
 
         return REST2Result(
-            ghi, ghi_tracker, dni, dhi, ghi_cs, ghi_tracker_cs, dni_cs, dhi_cs
+            ghi_df,
+            ghi_tracker_df,
+            dni_df,
+            dhi_df,
+            ghi_cs_df,
+            ghi_tracker_cs_df,
+            dni_cs_df,
+            dhi_cs_df,
         )
 
     def _evaluate_air_masses(
@@ -607,6 +626,10 @@ class REST2:
         rs1 = radiation.rs
         rg = surface_albedo
         Ba = radiation.Ba
+        if Ba is None:
+            raise ValueError(
+                "Ba must not be None for band 1 irradiance calculation"
+            )
         TC_dir = transmittance.direct
         TC_dif = transmittance.diffuse
 
@@ -671,6 +694,10 @@ class REST2:
         TAS2 = radiation.TAS
         rs2 = radiation.rs
         Ba = radiation.Ba
+        if Ba is None:
+            raise ValueError(
+                "Ba must not be None for band 2 irradiance calculation"
+            )
         rg = surface_albedo
         TC_dir = transmittance.direct
         TC_dif = transmittance.diffuse
