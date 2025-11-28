@@ -914,9 +914,9 @@ class REST2:
         self, measured: pl.DataFrame, radiation_type: str = "dni"
     ) -> dict:
         parameter_keys = list(self.DEFAULT_PARAMETERS.keys())
-        parameter_initial_values = np.array([
-            self.DEFAULT_PARAMETERS[key] for key in parameter_keys
-        ])
+        parameter_initial_values = np.array(
+            [self.DEFAULT_PARAMETERS[key] for key in parameter_keys]
+        )
 
         def f(params: np.ndarray) -> float:
             params_dict = {

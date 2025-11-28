@@ -2,12 +2,11 @@ from datetime import datetime
 
 import numpy as np
 import pytz
-import xarray as xr
 
 from app.internal.constants import (
     EARTH_RADIUS_KM,
-    TIMEZONE,
     SOLAR_IRRADIANCE_CONSTANT_W_m2,
+    TIMEZONE,
 )
 
 
@@ -29,17 +28,6 @@ def haversine_distance(
     c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a))
     distance = R * c
     return distance
-
-
-def nearest_point(data: xr.DataArray, lat: float, lon: float) -> float:
-    points = np.array(
-        data.stack(points=["latitude", "longitude"]).indexes["points"]
-    )
-    lat_array = [p[0] for p in points]
-    lon_array = [p[1] for p in points]
-    distances = haversine_distance(lat_array, lon_array, lat, lon)
-    index = np.argmin(distances)
-    return lat_array[index], lon_array[index]
 
 
 def extraterrestrial_radiation(

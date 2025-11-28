@@ -1,20 +1,20 @@
-# System Architecture
+# Arquitetura do Sistema
 
-This document describes the architecture of `rest2-ons`, including data flow, main components, and design decisions.
+Este documento descreve a arquitetura do `rest2-ons`, incluindo o fluxo de dados, componentes principais e decisões de design.
 
-## Overview
+## Visão Geral
 
-The system implements a data processing pipeline for solar irradiance forecasting using the REST2 model with optimized parameters. It operates in two modes:
+O sistema implementa um pipeline de processamento de dados para previsão de irradiância solar usando o modelo REST2 com parâmetros otimizados. Opera em dois modos:
 
-1. **Train**: Optimizes REST2 model parameters using historical measured data
-2. **Inference**: Generates predictions using pre-trained parameters
+1. **Train**: Otimiza parâmetros do modelo REST2 usando dados medidos históricos
+2. **Inference**: Gera previsões usando parâmetros pré-treinados
 
-## Flow Diagram
+## Diagrama de Fluxo
 
 ```
                               ┌─────────────────────┐
                               │   config.jsonc      │
-                              │   (configuration)   │
+                              │   (configuração)    │
                               └──────────┬──────────┘
                                          │
                                          ▼
@@ -27,7 +27,7 @@ The system implements a data processing pipeline for solar irradiance forecastin
                          │                            │
                          ▼                            ▼
               ┌─────────────────────┐      ┌─────────────────────┐
-              │   MODE: train       │      │   MODE: inference   │
+              │   MODO: train       │      │   MODO: inference   │
               │   train.py          │      │   inference.py      │
               └──────────┬──────────┘      └──────────┬──────────┘
                          │                            │
@@ -36,7 +36,7 @@ The system implements a data processing pipeline for solar irradiance forecastin
     │                    ▼                            ▼                  │
     │         ┌─────────────────────┐     ┌─────────────────────┐        │
     │         │  train_plant()      │     │  predict_plant()    │        │
-    │         │  (per plant)        │     │  (per plant)        │        │
+    │         │  (por usina)        │     │  (por usina)        │        │
     │         └──────────┬──────────┘     └──────────┬──────────┘        │
     │                    │                           │                   │
     │     ┌──────────────┴──────────────┐            │                   │
@@ -44,13 +44,13 @@ The system implements a data processing pipeline for solar irradiance forecastin
     │     ▼                             ▼            ▼                   │
     │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  │
     │  │ load_data()      │  │ optimize_params()│  │ apply_rest2()    │  │
-    │  │ readers.py       │  │ BFGS minimization│  │ services/rest2   │  │
+    │  │ readers.py       │  │ minimização BFGS │  │ services/rest2   │  │
     │  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘  │
     │           │                     │                     │            │
     │           │                     ▼                     │            │
     │           │           ┌──────────────────┐            │            │
-    │           │           │  {plant}.json    │◄───────────┤            │
-    │           │           │  (artifact)      │            │            │
+    │           │           │  {usina}.json    │◄───────────┤            │
+    │           │           │  (artefato)      │            │            │
     │           │           └──────────────────┘            │            │
     │           │                                           │            │
     │           └──────────────────┬────────────────────────┘            │
@@ -71,315 +71,355 @@ The system implements a data processing pipeline for solar irradiance forecastin
                                  │
                                  ▼
                       ┌─────────────────────┐
-                      │  OUTPUT             │
-                      │  ├─ {plant}.parquet │
-                      │  ├─ {plant}.json    │
+                      │  SAÍDA              │
+                      │  ├─ {usina}.parquet │
+                      │  ├─ {usina}.json    │
                       │  └─ plots/*.html    │
                       └─────────────────────┘
 ```
 
-## Main Components
+## Componentes Principais
 
 ### 1. Entry Point (`main.py`)
 
-System entry point. Responsibilities:
+Ponto de entrada do sistema. Responsabilidades:
 
-- Parse command-line arguments
-- Load configuration from JSONC file
-- Dispatch to `train` or `inference` mode
-- Top-level error handling
+- Parsear argumentos de linha de comando
+- Carregar configuração do arquivo JSONC
+- Despachar para modo `train` ou `inference`
+- Tratamento de erros de alto nível
 
-### 2. Configuration (`app/parser.py`)
+### 2. Configuração (`app/internal/config.py`)
 
-Manages parsing and validation of configuration file.
+Gerencia parsing e validação do arquivo de configuração.
 
-| Function               | Description                               |
-| ---------------------- | ----------------------------------------- |
-| `parse_config()`       | Parse and validate complete configuration |
-| `validate_config()`    | Verify required fields and types          |
-| `parse_time_windows()` | Parse ISO 8601 time intervals             |
+| Função                 | Descrição                                   |
+| ---------------------- | ------------------------------------------- |
+| `Config.parse()`       | Interpreta e valida configuração completa   |
+| `TimeWindow.parse()`   | Parseia intervalos de tempo ISO 8601        |
+| `Config.from_json()`   | Carrega configuração de arquivo JSONC       |
 
-### 3. Data Loading (`app/readers.py`)
+### 3. Leitura de Dados (`app/readers.py`)
 
-Loads input data from various sources.
+Carrega dados de entrada de várias fontes.
 
 ```
-Input: data directory path
+Entrada: caminho do diretório de dados
     │
     ▼
 ┌─────────────────────────────────┐
-│ read_usinas()                   │ → Load plant metadata (CSV)
+│ read_usinas()                   │ → Carrega metadados das usinas (CSV)
 └─────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────┐
-│ read_atmospheric_params()       │ → Load CAMS forecasts (Parquet)
+│ for_location().build()          │ → Carrega previsões CAMS (Parquet)
 └─────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────┐
-│ read_cod_forecasts()            │ → Load COD forecasts (Parquet)
+│ read_measured_for_plant()       │ → Carrega medições (Parquet)
 └─────────────────────────────────┘
     │
     ▼
-┌─────────────────────────────────┐
-│ read_measured_irradiance()      │ → Load ground truth (Parquet)
-└─────────────────────────────────┘
-    │
-    ▼
-Output: Polars DataFrames
+Saída: Polars DataFrames
 ```
 
-### 4. Training (`app/train.py`)
+### 4. Treinamento (`app/train.py`)
 
-Implements training pipeline with parameter optimization.
+Implementa o pipeline de treinamento com otimização de parâmetros.
 
-| Function                | Description                         |
-| ----------------------- | ----------------------------------- |
-| `train_main()`          | Orchestrate training for all plants |
-| `train_plant()`         | Process single plant                |
-| `optimize_parameters()` | Run BFGS optimization               |
-| `calculate_metrics()`   | Compute ME, MAE, RMSE               |
+| Função                  | Descrição                              |
+| ----------------------- | -------------------------------------- |
+| `TrainManager.train()`  | Orquestra treinamento para todas usinas|
+| `_train_for_plant()`    | Processa uma usina                     |
+| `_train_rest2()`        | Executa otimização BFGS                |
+| `_evaluate_rest2()`     | Calcula ME, MAE, RMSE                  |
 
-#### Optimization Algorithm
+#### Algoritmo de Otimização
 
-For each plant, optimizes parameters to minimize RMSE:
+Para cada usina, otimiza parâmetros para minimizar RMSE:
 
 ```
-minimize: RMSE(measured, REST2(params, atmospheric_data))
+minimizar: RMSE(medido, REST2(params, dados_atmosfericos))
 
-Method: BFGS (Broyden-Fletcher-Goldfarb-Shanno)
-Parameters:
-  - mu0: cloud optical depth scaling factor
-  - g: aerosol asymmetry parameter (typically fixed at 0.85)
+Método: BFGS (Broyden-Fletcher-Goldfarb-Shanno)
+Parâmetros:
+  - mu0: fator de escala da profundidade óptica de nuvens
+  - g: parâmetro de assimetria de aerossóis (tipicamente fixo em 0.85)
 ```
 
-### 5. Inference (`app/inference.py`)
+### 5. Inferência (`app/inference.py`)
 
-Applies trained model to generate predictions.
+Aplica o modelo treinado para gerar previsões.
 
-| Function           | Description                           |
-| ------------------ | ------------------------------------- |
-| `inference_main()` | Orchestrate inference for all plants  |
-| `predict_plant()`  | Generate predictions for single plant |
-| `load_artifact()`  | Load trained parameters from JSON     |
+| Função                     | Descrição                              |
+| -------------------------- | -------------------------------------- |
+| `InferenceManager.predict()` | Orquestra inferência para todas usinas |
+| `_predict_for_plant()`     | Gera previsões para uma usina          |
+| `read_plant_artifacts()`   | Carrega parâmetros treinados do JSON   |
 
-### 6. REST2 Model (`app/services/`)
+### 6. Modelo REST2 (`app/services/`)
 
-Implements the REST2 solar radiation model.
+Implementa o modelo de radiação solar REST2.
 
-| Module              | Description                          |
-| ------------------- | ------------------------------------ |
-| `rest2.py`          | Main REST2 model implementation      |
-| `solar_geometry.py` | Solar position calculations          |
-| `transmittance.py`  | Atmospheric transmittance components |
+| Módulo              | Descrição                                |
+| ------------------- | ---------------------------------------- |
+| `radiation.py`      | Implementação principal do modelo REST2  |
 
-#### REST2 Model Components
+#### Componentes do Modelo REST2
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   REST2 MODEL                        │
+│                   MODELO REST2                       │
 ├─────────────────────────────────────────────────────┤
 │                                                      │
-│  Extraterrestrial Radiation (I₀)                    │
+│  Radiação Extraterrestre (I₀)                       │
 │       │                                              │
 │       ▼                                              │
 │  ┌─────────────────────────────────────────────┐    │
-│  │         Transmittance Components             │    │
-│  │  ├── Rayleigh scattering (TR)               │    │
-│  │  ├── Aerosol extinction (TA)                │    │
-│  │  ├── Ozone absorption (To)                  │    │
-│  │  ├── Gas absorption (Tg, Tn, Tw)            │    │
-│  │  └── Cloud transmittance (Tc)               │    │
+│  │         Componentes de Transmitância         │    │
+│  │  ├── Espalhamento Rayleigh (TR)             │    │
+│  │  ├── Extinção por Aerossóis (TA)            │    │
+│  │  ├── Absorção por Ozônio (To)               │    │
+│  │  ├── Absorção por Gases (Tg, Tn, Tw)        │    │
+│  │  └── Transmitância de Nuvens (Tc)           │    │
 │  └─────────────────────────────────────────────┘    │
 │       │                                              │
 │       ▼                                              │
 │  ┌─────────────────────────────────────────────┐    │
-│  │         Radiation Components                 │    │
+│  │         Componentes de Radiação              │    │
 │  │  ├── DNI = I₀ × ΠT × Tc_direct              │    │
-│  │  ├── DHI = scattered + reflected            │    │
+│  │  ├── DHI = espalhado + refletido            │    │
 │  │  └── GHI = DNI × cos(θz) + DHI              │    │
 │  └─────────────────────────────────────────────┘    │
 │                                                      │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 7. Utilities (`app/utils/`)
+### 7. Utilitários (`app/utils/`)
 
-Reusable utility functions.
+Funções utilitárias reutilizáveis.
 
-| Module          | Description                               |
-| --------------- | ----------------------------------------- |
-| `metrics.py`    | Error metric calculations (ME, MAE, RMSE) |
-| `plots.py`      | Interactive plot generation with Plotly   |
-| `bounds.py`     | Variable bounds and clipping              |
-| `time_utils.py` | Time zone and timestamp handling          |
+| Módulo          | Descrição                                     |
+| --------------- | --------------------------------------------- |
+| `metrics.py`    | Cálculo de métricas de erro (ME, MAE, RMSE)   |
+| `plots.py`      | Geração de gráficos interativos com Plotly    |
+| `data.py`       | Estruturas de dados e funções auxiliares      |
+| `utils.py`      | Geometria solar e conversões                  |
 
-### 8. Output Writing (`app/writers.py`)
+### 8. Abstração de Storage (`app/storage/`)
 
-Exports results to various formats.
+Fornece uma interface unificada para operações de arquivo entre filesystem local e AWS S3.
 
-| Function              | Description                       |
-| --------------------- | --------------------------------- |
-| `write_artifact()`    | Save trained parameters to JSON   |
-| `write_predictions()` | Export predictions to Parquet     |
-| `write_plots()`       | Generate HTML visualization plots |
+| Módulo       | Descrição                                        |
+| ------------ | ------------------------------------------------ |
+| `base.py`    | Interface abstrata `StorageBackend`              |
+| `local.py`   | Implementação para filesystem local              |
+| `s3.py`      | Implementação AWS S3 usando boto3/s3fs           |
+| `factory.py` | `StorageFactory` para seleção automática de backend |
 
-## Data Flow
+#### Arquitetura de Storage
 
-### Input
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     StorageFactory                          │
+│  get_storage(path) → StorageBackend                        │
+└───────────────────┬─────────────────────────────────────────┘
+                    │
+        ┌───────────┴───────────┐
+        │                       │
+        ▼                       ▼
+┌───────────────────┐   ┌───────────────────┐
+│   LocalBackend    │   │    S3Backend      │
+│   (path: /...)    │   │   (path: s3://...)│
+├───────────────────┤   ├───────────────────┤
+│ read_parquet()    │   │ read_parquet()    │
+│ write_parquet()   │   │ write_parquet()   │
+│ read_bytes()      │   │ read_bytes()      │
+│ write_bytes()     │   │ write_bytes()     │
+│ exists()          │   │ exists()          │
+│ makedirs()        │   │ makedirs()        │
+│ list_files()      │   │ list_files()      │
+│ delete()          │   │ delete()          │
+│ join_path()       │   │ join_path()       │
+│ get_uri()         │   │ get_uri()         │
+└───────────────────┘   └───────────────────┘
+```
+
+A factory seleciona automaticamente o backend apropriado baseado no prefixo do caminho:
+- Caminhos começando com `s3://` usam `S3Backend`
+- Todos os outros caminhos usam `LocalBackend`
+
+### 9. Escrita de Resultados (`app/writers.py`)
+
+Exporta resultados em vários formatos.
+
+| Função                       | Descrição                              |
+| ---------------------------- | -------------------------------------- |
+| `write_plant_artifacts()`    | Salva parâmetros treinados em JSON     |
+| `write_inference_results()`  | Exporta previsões para Parquet         |
+| `write_plant_train_plots()`  | Gera gráficos HTML de visualização     |
+
+## Fluxo de Dados
+
+### Entrada
 
 ```
 data/input/
-├── usinas.csv                    # Plant metadata
-├── albedo.parquet                # Surface albedo (CAMS)
-├── cod.parquet                   # Cloud optical depth
-├── h2o.parquet                   # Water vapor (CAMS)
-├── no2.parquet                   # Nitrogen dioxide (CAMS)
-├── o3.parquet                    # Ozone (CAMS)
-├── od550.parquet                 # AOD at 550nm (CAMS)
-├── od670.parquet                 # AOD at 670nm (CAMS)
-├── psurf.parquet                 # Surface pressure (CAMS)
-├── temp.parquet                  # Temperature (CAMS)
-└── measured_irradiance.parquet   # Ground truth measurements
+├── usinas.csv                    # Metadados das usinas
+├── albedo.parquet                # Albedo de superfície (CAMS)
+├── cod.parquet                   # Profundidade óptica de nuvens
+├── h2o.parquet                   # Vapor d'água (CAMS)
+├── no2.parquet                   # Dióxido de nitrogênio (CAMS)
+├── o3.parquet                    # Ozônio (CAMS)
+├── od550.parquet                 # AOD em 550nm (CAMS)
+├── od670.parquet                 # AOD em 670nm (CAMS)
+├── psurf.parquet                 # Pressão de superfície (CAMS)
+├── temp.parquet                  # Temperatura (CAMS)
+└── measured_irradiance.parquet   # Medições in-loco
 ```
 
-### Internal Processing
+### Processamento Interno
 
 ```
 readers.py
     │
     ├── read_usinas() → pl.DataFrame
-    ├── read_atmospheric_params() → dict[str, pl.DataFrame]
-    ├── read_cod_forecasts() → pl.DataFrame
-    └── read_measured_irradiance() → pl.DataFrame
+    ├── for_location().build() → LocationInputData
+    └── read_measured_for_plant() → pl.DataFrame
 ```
 
-### Output
+### Saída
 
 ```
 data/artifacts/
-├── {plant_id}.json              # Trained parameters + metrics
+├── {id_usina}.json              # Parâmetros treinados + métricas
 └── plots/
-    └── {plant_id}_*.html        # Training plots
+    └── {id_usina}_*.html        # Gráficos de treinamento
 
 data/output/
-├── {plant_id}.parquet           # Predictions
+├── {id_usina}.parquet           # Previsões
 └── plots/
-    └── {plant_id}_*.html        # Inference plots
+    └── {id_usina}_*.html        # Gráficos de inferência
 ```
 
-## Design Decisions
+## Decisões de Design
 
-### Why Polars over Pandas?
+### Por que Polars ao invés de Pandas?
 
-- **Performance**: Faster for large datasets (millions of rows)
-- **Memory efficiency**: Lazy evaluation and columnar storage
-- **Type safety**: Strong typing catches errors early
-- **Modern API**: Cleaner syntax for common operations
+- **Performance**: Mais rápido para grandes datasets (milhões de linhas)
+- **Eficiência de memória**: Avaliação lazy e armazenamento colunar
+- **Segurança de tipos**: Tipagem forte detecta erros cedo
+- **API moderna**: Sintaxe mais limpa para operações comuns
 
-### Why BFGS for Optimization?
+### Por que BFGS para Otimização?
 
-- **Efficiency**: Quasi-Newton method, efficient for small parameter spaces
-- **Convergence**: Good convergence properties for smooth functions
-- **Availability**: Built into scipy, well-tested implementation
+- **Eficiência**: Método Quasi-Newton, eficiente para espaços de parâmetros pequenos
+- **Convergência**: Boas propriedades de convergência para funções suaves
+- **Disponibilidade**: Embutido no scipy, implementação bem testada
 
-### Why Process Plants Individually?
+### Por que Processar Usinas Individualmente?
 
-- **Parallelization**: Trivial to parallelize with multiprocessing
-- **Fault isolation**: Error in one plant doesn't affect others
-- **Debugging**: Easier to trace and debug per-plant issues
-- **Flexibility**: Different plants can have different configurations
+- **Paralelização**: Trivial de paralelizar com multiprocessing
+- **Isolamento de falhas**: Erro em uma usina não afeta outras
+- **Debugging**: Mais fácil rastrear e debugar problemas por usina
+- **Flexibilidade**: Diferentes usinas podem ter configurações diferentes
 
-### Why JSON for Artifacts?
+### Por que JSON para Artefatos?
 
-- **Human readable**: Easy to inspect and debug
-- **Version control friendly**: Git diffs are meaningful
-- **Portability**: Standard format, works everywhere
-- **Simplicity**: No binary format dependencies
+- **Legível**: Fácil de inspecionar e debugar
+- **Amigável ao versionamento**: Diffs do Git são significativos
+- **Portabilidade**: Formato padrão, funciona em qualquer lugar
+- **Simplicidade**: Sem dependências de formato binário
 
-### Why Parquet for Predictions?
+### Por que Parquet para Previsões?
 
-- **Efficiency**: Columnar storage, excellent compression
-- **Performance**: Fast reading, especially for partial columns
-- **Schema**: Enforces data types and structure
-- **Ecosystem**: Works with Polars, Pandas, Arrow, Spark
+- **Eficiência**: Armazenamento colunar, excelente compressão
+- **Performance**: Leitura rápida, especialmente para colunas parciais
+- **Schema**: Força tipos de dados e estrutura
+- **Ecossistema**: Funciona com Polars, Pandas, Arrow, Spark
 
-## Extensibility
+## Extensibilidade
 
-### Adding New Atmospheric Parameter
+### Adicionando Novo Parâmetro Atmosférico
 
-1. Add reader function in `readers.py`
-2. Update `read_atmospheric_params()` to include new parameter
-3. Update REST2 model to use new parameter
-4. Update config schema if needed
+1. Adicionar leitura em `readers.py`
+2. Atualizar `LocationInputData` para incluir novo parâmetro
+3. Atualizar modelo REST2 para usar novo parâmetro
+4. Atualizar schema de configuração se necessário
 
-### Adding New Radiation Type
+### Adicionando Novo Tipo de Radiação
 
-1. Add calculation in `services/rest2.py`
-2. Update `target_radiation_type` enum in config
-3. Add corresponding output handling
+1. Adicionar cálculo em `services/radiation.py`
+2. Atualizar enum `target_radiation_type` na config
+3. Adicionar tratamento de saída correspondente
 
-### Adding New Optimization Algorithm
+### Adicionando Novo Algoritmo de Otimização
 
-1. Create new optimizer in `train.py`
-2. Add configuration option for optimizer selection
-3. Implement common interface for parameter optimization
+1. Criar novo otimizador em `train.py`
+2. Adicionar opção de configuração para seleção de otimizador
+3. Implementar interface comum para otimização de parâmetros
 
-## Dependencies
+## Dependências
 
 ```
 numpy (>= 2.3.2)
-├── Numerical computations
-└── Array operations
+├── Computação numérica
+└── Operações com arrays
 
 polars (>= 1.31.0)
-├── Data loading and manipulation
-└── DataFrame operations
+├── Carga e manipulação de dados
+└── Operações com DataFrame
 
 plotly (>= 6.2.0)
-└── Interactive HTML plots
+└── Gráficos HTML interativos
 
 pyarrow (>= 21.0.0)
-└── Parquet file I/O
+└── I/O de arquivos Parquet
 
 pyjson5 (>= 2.0.0)
-└── JSONC configuration parsing
+└── Parsing de configuração JSONC
 
 statsmodels (>= 0.14.5)
-└── Statistical functions
+└── Funções estatísticas
 
 python-dotenv (>= 1.1.1)
-└── Environment variable loading
+└── Carregamento de variáveis de ambiente
 
-requests (>= 2.32.4)
-└── HTTP requests (for S3/remote data)
+boto3 (>= 1.35.0)
+├── Cliente AWS S3
+└── Operações com buckets S3
+
+s3fs (>= 2024.10.0)
+├── Interface filesystem S3
+└── Integração Polars/Pandas com S3
 ```
 
-## Performance Considerations
+## Considerações de Performance
 
-### Complexity
+### Complexidade
 
-| Operation              | Complexity                    |
-| ---------------------- | ----------------------------- |
-| Data loading           | O(N) where N = number of rows |
-| Solar geometry         | O(N) per plant                |
-| Parameter optimization | O(I × N) where I = iterations |
-| Metric calculation     | O(N)                          |
-| Plot generation        | O(N)                          |
+| Operação               | Complexidade                    |
+| ---------------------- | ------------------------------- |
+| Carga de dados         | O(N) onde N = número de linhas  |
+| Geometria solar        | O(N) por usina                  |
+| Otimização de parâmetros | O(I × N) onde I = iterações   |
+| Cálculo de métricas    | O(N)                            |
+| Geração de gráficos    | O(N)                            |
 
-### Bottlenecks
+### Gargalos
 
-1. **Data Loading**: Large Parquet files can be slow
-   - Mitigation: Use predicate pushdown, column selection
-2. **Optimization Iterations**: BFGS can require many iterations
-   - Mitigation: Good initial values, convergence tolerance
-3. **Plot Generation**: Large datasets create heavy HTML files
-   - Mitigation: Downsample for visualization
+1. **Carga de Dados**: Arquivos Parquet grandes podem ser lentos
+   - Mitigação: Usar predicate pushdown, seleção de colunas
+2. **Iterações de Otimização**: BFGS pode requerer muitas iterações
+   - Mitigação: Bons valores iniciais, tolerância de convergência
+3. **Geração de Gráficos**: Grandes datasets criam arquivos HTML pesados
+   - Mitigação: Downsample para visualização
 
-### Future Optimizations
+### Otimizações Futuras
 
-- Parallel plant processing with multiprocessing
-- Lazy evaluation for data transformations
-- Caching of intermediate results
-- Streaming processing for very large datasets
+- Processamento paralelo de usinas com multiprocessing
+- Avaliação lazy para transformações de dados
+- Cache de resultados intermediários
+- Processamento streaming para datasets muito grandes

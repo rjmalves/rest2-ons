@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Optional
@@ -8,6 +7,7 @@ import polars as pl
 import pyjson5
 
 from app.internal.config import Config
+from app.storage import StorageFactory
 from app.utils.data import PlantArtifact
 from app.utils.utils import haversine_distance
 
@@ -66,10 +66,12 @@ class LocationInputData:
             )
             / np.log(550.0 / 670.0)
         )
-        self.angstrom_exponent = pl.DataFrame({
-            "time": self.od550["time"],
-            "valor": angstrom_exponent,
-        })
+        self.angstrom_exponent = pl.DataFrame(
+            {
+                "time": self.od550["time"],
+                "valor": angstrom_exponent,
+            }
+        )
 
         return self
 
@@ -154,6 +156,7 @@ class LocationDataBuilder:
 class InputData:
     def __init__(self, path: str):
         self.path = path
+        self.storage = StorageFactory.get_storage(path)
 
     def _apply_filters(self, lf: pl.LazyFrame, filters: dict) -> pl.LazyFrame:
         for key, value in filters.items():
@@ -164,14 +167,14 @@ class InputData:
         return lf
 
     def _read_csv(self, filename: str, filters: dict) -> pl.DataFrame:
-        file_path = os.path.join(self.path, filename)
+        file_path = self.storage.join_path(self.path, filename)
         lf = pl.scan_csv(file_path)
         lf = self._apply_filters(lf, filters)
         return lf.collect()
 
     def _read_parquet(self, filename: str, filters: dict) -> pl.DataFrame:
-        file_path = os.path.join(self.path, filename)
-        lf = pl.scan_parquet(file_path)
+        file_path = self.storage.join_path(self.path, filename)
+        lf = self.storage.read_parquet(file_path)
         lf = self._apply_filters(lf, filters)
         return lf.collect()
 
@@ -195,8 +198,8 @@ class InputData:
         reference_file: str = "albedo.parquet",
     ) -> tuple[float, float]:
         """Find the nearest grid point to target coordinates."""
-        file_path = os.path.join(self.path, reference_file)
-        df = pl.read_parquet(file_path)
+        file_path = self.storage.join_path(self.path, reference_file)
+        df = self.storage.read_parquet(file_path).collect()
 
         # Get unique coordinate pairs
         coords = df.select(["latitude", "longitude"]).unique()
@@ -294,10 +297,10 @@ class InputData:
         forecasting_day: Optional[int] = None,
     ) -> Optional[pl.DataFrame]:
         try:
-            file_path = os.path.join(self.path, filename)
-            if not os.path.exists(file_path):
+            file_path = self.storage.join_path(self.path, filename)
+            if not self.storage.exists(file_path):
                 return None
-            df = pl.read_parquet(file_path)
+            df = self.storage.read_parquet(file_path).collect()
             # Filter by coordinates
             df = df.filter(
                 (pl.col("latitude") == latitude)
@@ -333,9 +336,11 @@ class InputData:
         end_date: datetime | None = None,
     ) -> pl.DataFrame:
         df = self._read("measured_irradiance.parquet", {"id_usina": plant_id})
-        df = df.with_columns([
-            pl.col("data_hora_observacao").cast(pl.Datetime),
-        ])
+        df = df.with_columns(
+            [
+                pl.col("data_hora_observacao").cast(pl.Datetime),
+            ]
+        )
         df = df.drop("id_usina")
         df = df.rename({"data_hora_observacao": "time"})
         df = df.filter(pl.col("time") >= start_date) if start_date else df
@@ -349,10 +354,12 @@ class InputData:
     def filter_forecasting_day(
         cls, df: pl.DataFrame, forecasting_day: int
     ) -> pl.DataFrame:
-        df = df.with_columns([
-            pl.col("data_hora_previsao").cast(pl.Datetime),
-            pl.col("data_hora_rodada").cast(pl.Datetime),
-        ])
+        df = df.with_columns(
+            [
+                pl.col("data_hora_previsao").cast(pl.Datetime),
+                pl.col("data_hora_rodada").cast(pl.Datetime),
+            ]
+        )
 
         dia_expr = (
             (
@@ -362,9 +369,9 @@ class InputData:
             / 1_000_000
         ) / 86400.0
 
-        df = df.with_columns([
-            dia_expr.floor().cast(pl.Int32).alias("dia_previsao")
-        ])
+        df = df.with_columns(
+            [dia_expr.floor().cast(pl.Int32).alias("dia_previsao")]
+        )
 
         df = df.filter(pl.col("dia_previsao") == forecasting_day)
         df = df.drop(["dia_previsao", "data_hora_rodada"])
@@ -374,14 +381,15 @@ class InputData:
 
 
 def read_plant_artifacts(config: Config) -> dict[str, PlantArtifact]:
+    storage = StorageFactory.get_storage(config.artifact)
     artifacts = {}
     for plant_id in config.plant_ids or []:
-        with open(os.path.join(config.artifact, f"{plant_id}.json"), "r") as f:
-            data = f.read()
-            artifact_dict = pyjson5.decode(data)
-            artifacts[plant_id] = PlantArtifact(
-                parameters=artifact_dict["parameters"],
-                metrics=artifact_dict["metrics"],
-                radiation_type=artifact_dict["radiation_type"],
-            )
+        artifact_path = storage.join_path(config.artifact, f"{plant_id}.json")
+        data = storage.read_bytes(artifact_path).decode("utf-8")
+        artifact_dict = pyjson5.decode(data)
+        artifacts[plant_id] = PlantArtifact(
+            parameters=artifact_dict["parameters"],
+            metrics=artifact_dict["metrics"],
+            radiation_type=artifact_dict["radiation_type"],
+        )
     return artifacts

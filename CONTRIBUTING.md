@@ -1,368 +1,400 @@
-# Contributing to rest2-ons
+# Contribuindo para o rest2-ons
 
-Thank you for your interest in contributing! This document provides guidelines for contributions to the project.
+Obrigado pelo interesse em contribuir! Este documento fornece diretrizes para contribuições ao projeto.
 
-## 📋 Table of Contents
+## 📋 Índice
 
-- [How to Contribute](#how-to-contribute)
-- [Development Setup](#development-setup)
-- [Code Standards](#code-standards)
-- [Testing](#testing)
-- [Documentation](#documentation)
-- [Pull Request Process](#pull-request-process)
-
----
-
-## 🤝 How to Contribute
-
-### Reporting Bugs
-
-1. Check if the bug has already been reported in [Issues](https://github.com/rjmalves/rest2-ons/issues)
-2. If not found, create a new issue using the bug report template
-3. Include:
-   - Clear description of the problem
-   - Steps to reproduce
-   - Expected vs. observed behavior
-   - Python version and package version
-   - Error logs (if applicable)
-
-### Suggesting Improvements
-
-1. Open an issue using the feature request template
-2. Describe:
-   - The problem the improvement solves
-   - The proposed solution
-   - Alternatives considered
-
-### Contributing Code
-
-1. Fork the repository
-2. Create a branch for your feature (`git checkout -b feature/my-feature`)
-3. Make atomic commits with descriptive messages
-4. Write/update tests for your changes
-5. Ensure all tests pass
-6. Open a Pull Request
+- [Como Contribuir](#como-contribuir)
+- [Configuração do Ambiente](#configuração-do-ambiente)
+- [Padrões de Código](#padrões-de-código)
+- [Testes](#testes)
+- [Documentação](#documentação)
+- [Processo de Pull Request](#processo-de-pull-request)
 
 ---
 
-## 🛠️ Development Setup
+## 🤝 Como Contribuir
 
-### Prerequisites
+### Reportando Bugs
+
+1. Verifique se o bug já não foi reportado nas [Issues](https://github.com/rjmalves/rest2-ons/issues)
+2. Se não encontrar, crie uma nova issue usando o template de bug report
+3. Inclua:
+   - Descrição clara do problema
+   - Passos para reproduzir
+   - Comportamento esperado vs. observado
+   - Versão do Python e do pacote
+   - Logs de erro (se aplicável)
+
+### Sugerindo Melhorias
+
+1. Abra uma issue usando o template de feature request
+2. Descreva:
+   - O problema que a melhoria resolve
+   - A solução proposta
+   - Alternativas consideradas
+
+### Contribuindo com Código
+
+1. Fork o repositório
+2. Crie uma branch para sua feature (`git checkout -b feature/minha-feature`)
+3. Faça commits atômicos com mensagens descritivas
+4. Escreva/atualize testes para suas mudanças
+5. Garanta que todos os testes passam
+6. Abra um Pull Request
+
+---
+
+## 🛠️ Configuração do Ambiente
+
+### Pré-requisitos
 
 - Python >= 3.11
+- [uv](https://github.com/astral-sh/uv) (gerenciador de pacotes recomendado)
 - Git
-- Visual Studio Code (recommended) or other IDE
 
-### Initial Setup
+### Setup Inicial
 
 ```bash
-# Clone your fork
-git clone https://github.com/YOUR_USERNAME/rest2-ons.git
+# Clone seu fork
+git clone https://github.com/SEU_USUARIO/rest2-ons.git
 cd rest2-ons
 
-# Add upstream remote
+# Adicione o upstream
 git remote add upstream https://github.com/rjmalves/rest2-ons.git
 
-# Create virtual environment
-python3 -m venv venv
+# Instale as dependências com uv
+uv sync --all-extras --dev
+
+# Ou com pip tradicional
+python -m venv venv
 source venv/bin/activate
-
-# Install in editable mode with dev dependencies
-pip install --upgrade pip setuptools wheel
 pip install -e ".[dev]"
-
-# Or install dev dependencies manually
-pip install -e .
-pip install pytest pytest-cov ruff mypy
 ```
 
-### Verifying Installation
+### Verificando a Instalação
 
 ```bash
-# Run the application
-rest2-ons --help
+# Executar testes
+uv run pytest tests/
 
-# Run tests
-pytest
+# Verificar linting
+uv run ruff check app/ tests/
 
-# Run linter
-ruff check .
+# Verificar tipos
+uv run mypy app/
 ```
-
-### Development vs Production Installation
-
-| Aspect       | Development (`pip install -e .`)       | Production (`./setup.sh`)                |
-| ------------ | -------------------------------------- | ---------------------------------------- |
-| Installation | Editable - changes reflect immediately | Standard - code is copied                |
-| Location     | Local `venv/` directory                | `/opt/rest2-ons` or `~/.local/rest2-ons` |
-| Use case     | Development, testing, debugging        | End-users, production                    |
 
 ---
 
-## 📐 Code Standards
+## 📐 Padrões de Código
 
-### Style
+### Estilo
 
-We follow [PEP 8](https://peps.python.org/pep-0008/) with configurations in `pyproject.toml`:
+Seguimos as convenções PEP 8 com algumas customizações definidas em `pyproject.toml`.
 
-```toml
-# Main settings:
-# - Max line length: 80 characters
-# - Imports: sorted by isort rules
-# - Formatting: ruff format
-```
-
-### Style Verification
+### Verificação de Estilo
 
 ```bash
-# Run linter
-ruff check .
+# Executar linter
+uv run ruff check app/ tests/
 
-# Auto-fix issues
-ruff check --fix .
+# Formatar código automaticamente
+uv run ruff format app/ tests/
 
-# Format code
-ruff format .
-
-# Check formatting without changes
-ruff format --check .
+# Verificar formatação sem modificar
+uv run ruff format --check app/ tests/
 ```
 
-### Python Best Practices
+### Boas Práticas Python
 
-#### 1. Small, Pure Functions
+Seguimos os princípios de código limpo e tipagem estática:
+
+#### 1. Type Hints Obrigatórios
 
 ```python
-# ✅ Good: focused function, no side effects
-def calculate_rmse(observed: np.ndarray, predicted: np.ndarray) -> float:
-    """Calculate Root Mean Square Error."""
-    if len(observed) != len(predicted):
-        raise ValueError("Arrays must have same length")
-    return np.sqrt(np.mean((observed - predicted) ** 2))
+# ✅ Bom: função com type hints completos
+def calcular_rmse(observado: np.ndarray, previsto: np.ndarray) -> float:
+    """Calcula o erro médio absoluto."""
+    return float(np.mean(np.abs(observado - previsto)))
 
-# ❌ Avoid: large functions with multiple responsibilities
+# ❌ Evitar: funções sem type hints
+def calcular_rmse(observado, previsto):
+    return np.mean(np.abs(observado - previsto))
 ```
 
-#### 2. Input Validation
+#### 2. Docstrings Claras
 
 ```python
-# ✅ Good: validate types and dimensions
-def process_data(df: pl.DataFrame, column: str) -> pl.DataFrame:
-    if column not in df.columns:
-        raise ValueError(f"Column '{column}' not found in DataFrame")
-    # ...
-```
+# ✅ Bom: docstring informativa
+def train_plant(plant_id: str, data: pl.DataFrame) -> TrainResult:
+    """
+    Treina parâmetros do modelo REST2 para uma usina.
 
-#### 3. Type Hints
+    Otimiza os parâmetros mu0 e g usando minimização BFGS
+    para minimizar o RMSE contra dados medidos de irradiância.
 
-```python
-# ✅ Good: use type hints for public APIs
-def train_model(
-    data: pl.DataFrame,
-    target_column: str,
-    learning_rate: float = 0.01,
-) -> dict[str, float]:
-    """Train model and return metrics."""
+    Args:
+        plant_id: Identificador único da usina.
+        data: DataFrame com parâmetros atmosféricos e valores medidos.
+
+    Returns:
+        TrainResult contendo parâmetros otimizados e métricas.
+
+    Raises:
+        ValueError: Se plant_id não for encontrado nos dados.
+    """
     ...
 ```
 
-#### 4. Error Handling
+#### 3. Validação de Entrada
 
 ```python
-# ✅ Good: informative error messages
-if data.is_empty():
-    raise ValueError(
-        f"No data found for plant '{plant_id}' "
-        f"in period {start_date} to {end_date}"
-    )
+# ✅ Bom: validar tipos e valores
+def processar_dados(df: pl.DataFrame, coluna: str) -> pl.DataFrame:
+    if coluna not in df.columns:
+        raise ValueError(f"Coluna '{coluna}' não encontrada no DataFrame")
+    # ...
+```
+
+#### 4. Evitar Efeitos Colaterais
+
+```python
+# ✅ Bom: função pura
+def normalizar(valores: np.ndarray) -> np.ndarray:
+    return (valores - valores.min()) / (valores.max() - valores.min())
+
+# ❌ Evitar: modificar entrada in-place sem documentar
+def normalizar(valores: np.ndarray) -> None:
+    valores[:] = (valores - valores.min()) / (valores.max() - valores.min())
 ```
 
 ---
 
-## 🧪 Testing
+## 🧪 Testes
 
-### Test Structure
+### Estrutura de Testes
 
 ```
 tests/
-├── conftest.py          # Shared fixtures
-├── fixtures/            # Test data files
-├── test_readers.py
-├── test_train.py
-├── test_inference.py
-└── test_utils.py
+├── __init__.py
+├── conftest.py              # Fixtures compartilhadas e configuração pytest
+├── fixtures/
+│   ├── data/                # Arquivos de dados de teste
+│   └── generate_test_data.py  # Gerador de dados mock
+├── unit/
+│   ├── test_config.py       # Testes de configuração
+│   ├── test_readers.py      # Testes de leitura de dados
+│   └── test_storage.py      # Testes de backends de storage
+└── integration/
+    └── test_pipeline.py     # Testes de integração do pipeline
 ```
 
-### Writing Tests
-
-```python
-def test_calculate_rmse_returns_expected_value():
-    # Arrange: prepare data
-    observed = np.array([1.0, 2.0, 3.0])
-    predicted = np.array([1.1, 2.1, 3.1])
-
-    # Act: execute function
-    result = calculate_rmse(observed, predicted)
-
-    # Assert: verify result
-    assert result == pytest.approx(0.1, rel=1e-6)
-
-
-def test_calculate_rmse_raises_on_mismatched_arrays():
-    with pytest.raises(ValueError, match="same length"):
-        calculate_rmse(np.array([1, 2]), np.array([1, 2, 3]))
-```
-
-### Running Tests
+### Executando Testes
 
 ```bash
-# All tests
-pytest
+# Usando Makefile (recomendado)
+make test              # Todos os testes
+make test-unit         # Apenas testes unitários
+make test-integration  # Apenas testes de integração
+make test-cov          # Com relatório de cobertura
+make test-s3           # Testes específicos de S3 (requer moto)
 
-# Specific test file
-pytest tests/test_train.py
-
-# With coverage
-pytest --cov=app --cov-report=html
-
-# Verbose output
-pytest -v
+# Ou usando pytest diretamente
+pytest                           # Todos os testes
+pytest tests/unit/               # Testes unitários
+pytest tests/integration/        # Testes de integração
+pytest --cov=app --cov-report=html  # Com cobertura
+pytest -v                        # Saída verbosa
+pytest -m "not slow"             # Pular testes lentos
+pytest -m s3                     # Apenas testes S3
 ```
 
-### Coverage Requirements
+### Categorias de Testes (Markers)
 
-- New public functions must have tests
-- Edge cases (None, empty, wrong types) should be tested
-- Tests must be independent and reproducible
+Testes são categorizados usando markers do pytest:
+
+| Marker        | Descrição                                   |
+| ------------- | ------------------------------------------- |
+| `@pytest.mark.unit`        | Testes unitários para componentes individuais |
+| `@pytest.mark.integration` | Testes de integração do pipeline completo   |
+| `@pytest.mark.slow`        | Testes que demoram para executar            |
+| `@pytest.mark.s3`          | Testes que requerem simulação S3/moto       |
+| `@pytest.mark.plotting`    | Testes que geram gráficos                   |
+
+### Escrevendo Testes
+
+```python
+import pytest
+from app.readers import InputData
+
+class TestInputData:
+    """Testa a classe InputData."""
+
+    def test_initialization(self):
+        """Testa inicialização do InputData."""
+        reader = InputData("data/input")
+        assert reader.path == "data/input"
+
+    def test_initialization_with_s3(self):
+        """Testa inicialização do InputData com caminho S3."""
+        reader = InputData("s3://bucket/input")
+        assert reader.path == "s3://bucket/input"
+
+    @pytest.mark.integration
+    def test_reads_parquet_files(self, tmp_path, sample_atmospheric_data):
+        """Testa leitura de arquivos parquet (teste de integração)."""
+        # Write test data
+        test_file = tmp_path / "test.parquet"
+        sample_atmospheric_data.write_parquet(test_file)
+
+        reader = InputData(str(tmp_path))
+        result = reader._read("test.parquet", {})
+
+        assert len(result) == len(sample_atmospheric_data)
+```
+
+### Fixtures
+
+Fixtures comuns são definidas em `tests/conftest.py`:
+
+```python
+@pytest.fixture
+def sample_atmospheric_data():
+    """Cria dados atmosféricos sintéticos para testes."""
+    # Retorna polars DataFrame com dados mock
+    ...
+
+@pytest.fixture
+def mock_s3_bucket():
+    """Cria um bucket S3 mock usando moto."""
+    # Requer moto instalado
+    ...
+```
+
+### Requisitos de Cobertura
+
+- Novas funções públicas devem ter testes
+- Casos de borda (NaN, vazios, tipos errados) devem ser testados
+- Testes devem ser independentes e reprodutíveis
+- Meta: >80% de cobertura para código novo
 
 ---
 
-## 📝 Documentation
+## 📝 Documentação
 
 ### Docstrings
 
-All public functions and classes must have complete documentation:
+Todas as funções e classes públicas devem ter documentação completa:
 
 ```python
-def train_plant(
-    plant_id: str,
-    data: pl.DataFrame,
-    config: TrainConfig,
-) -> TrainResult:
-    """Train REST2 model parameters for a single plant.
+class REST2:
+    """
+    Modelo de radiação solar REST2 com parâmetros otimizáveis.
 
-    Optimizes mu0 and g parameters using BFGS minimization
-    to minimize RMSE against measured irradiance data.
+    Esta classe implementa o modelo REST2 (Reference Evaluation of
+    Solar Transmittance, 2-band) com parâmetros ajustáveis para
+    calibração com dados medidos in-loco.
 
-    Args:
-        plant_id: Unique identifier for the plant.
-        data: DataFrame with atmospheric parameters and measured values.
-        config: Training configuration including time windows.
-
-    Returns:
-        TrainResult containing optimized parameters and metrics.
-
-    Raises:
-        ValueError: If plant_id not found in data.
-        OptimizationError: If BFGS optimization fails to converge.
+    Attributes:
+        location_data: Dados atmosféricos para o local.
+        parameters: Parâmetros otimizados (mu0, g).
 
     Example:
-        >>> result = train_plant("BAFJS7", data, config)
-        >>> print(f"RMSE: {result.metrics['train']['RMSE']}")
+        >>> location_data = reader.for_location(lat, lon).build()
+        >>> rest2 = REST2(location_data)
+        >>> params = rest2.train(measured_data, "dni")
     """
 ```
 
-### Updating Documentation
+### Atualizando Documentação
 
-```bash
-# After changing public APIs, update relevant docs:
-# - README.md for user-facing changes
-# - METHODOLOGY.md for algorithm changes
-# - TROUBLESHOOTING.md for new error cases
-```
+- Atualize o README se adicionar funcionalidades visíveis ao usuário
+- Atualize ARCHITECTURE.md se modificar a estrutura do sistema
+- Atualize CHANGELOG.md para mudanças relevantes
 
 ---
 
-## 🔄 Pull Request Process
+## 🔄 Processo de Pull Request
 
-### Before Opening PR
+### Antes de Abrir o PR
 
-1. **Sync with upstream**
+1. **Sincronize com upstream**
 
    ```bash
    git fetch upstream
    git rebase upstream/main
    ```
 
-2. **Run local checks**
+2. **Execute verificações locais**
 
    ```bash
-   ruff check .           # Linting passes
-   ruff format --check .  # Formatting correct
-   pytest                 # Tests pass
-   mypy app/              # Type checking (if enabled)
+   uv run ruff check app/ tests/     # Linting
+   uv run ruff format app/ tests/    # Formatação
+   uv run mypy app/                  # Type checking
+   uv run pytest tests/              # Testes
    ```
 
-3. **Organized commits**
-   - Descriptive messages in English
-   - One commit per logical change
-   - Format: `type: short description`
-     - `feat:` new functionality
-     - `fix:` bug fix
-     - `docs:` documentation
-     - `test:` tests
-     - `refactor:` refactoring
+3. **Commits organizados**
+   - Mensagens descritivas em português ou inglês
+   - Um commit por mudança lógica
+   - Formato: `tipo: descrição curta`
+     - `feat:` nova funcionalidade
+     - `fix:` correção de bug
+     - `docs:` documentação
+     - `test:` testes
+     - `refactor:` refatoração
 
-### PR Template
+### Template do PR
 
 ```markdown
-## Description
+## Descrição
 
-Brief description of changes.
+Breve descrição das mudanças.
 
-## Type of Change
+## Tipo de Mudança
 
 - [ ] Bug fix
-- [ ] New feature
+- [ ] Nova feature
 - [ ] Breaking change
-- [ ] Documentation
+- [ ] Documentação
 
 ## Checklist
 
-- [ ] Tests added/updated
-- [ ] Documentation updated
-- [ ] `ruff check .` passes
-- [ ] Code follows project standards
+- [ ] Testes adicionados/atualizados
+- [ ] Documentação atualizada
+- [ ] CI passa sem erros
+- [ ] Código segue os padrões do projeto
 
-## Related Issues
+## Issues Relacionadas
 
 Closes #123
 ```
 
-### Review
+### Revisão
 
-- PRs require at least 1 approval
-- CI must pass (tests, lint)
-- Discussions must be resolved before merge
-
----
-
-## 🏷️ Versioning
-
-We follow [Semantic Versioning](https://semver.org/):
-
-- **MAJOR**: incompatible API changes
-- **MINOR**: new backwards-compatible functionality
-- **PATCH**: backwards-compatible bug fixes
-
-Update `app/__init__.py` and `CHANGELOG.md` when releasing versions.
+- PRs requerem pelo menos 1 aprovação
+- CI deve passar (testes, lint, type check)
+- Discussões devem ser resolvidas antes do merge
 
 ---
 
-## ❓ Questions?
+## 🏷️ Versionamento
 
-- Open a [Discussion](https://github.com/rjmalves/rest2-ons/discussions) for general questions
-- Use [Issues](https://github.com/rjmalves/rest2-ons/issues) for bugs and features
-- Consult existing documentation
+Seguimos [Semantic Versioning](https://semver.org/):
 
-Thank you for contributing! 🎉
+- **MAJOR**: mudanças incompatíveis na API
+- **MINOR**: novas funcionalidades compatíveis
+- **PATCH**: correções de bugs compatíveis
+
+Atualize o `app/__init__.py` e `CHANGELOG.md` ao lançar versões.
+
+---
+
+## ❓ Dúvidas?
+
+- Abra uma [Discussion](https://github.com/rjmalves/rest2-ons/discussions) para perguntas gerais
+- Use [Issues](https://github.com/rjmalves/rest2-ons/issues) para bugs e features
+- Consulte a documentação existente
+
+Obrigado por contribuir! 🎉
