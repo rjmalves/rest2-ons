@@ -1,7 +1,8 @@
 # rest2-ons
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://github.com/rjmalves/rest2-ons/actions/workflows/tests.yaml/badge.svg)](https://github.com/rjmalves/rest2-ons/actions/workflows/tests.yaml)
+[![Tests](https://github.com/rjmalves/rest2-ons/actions/workflows/tests.yml/badge.svg)](https://github.com/rjmalves/rest2-ons/actions/workflows/tests.yml)
+[![Lint](https://github.com/rjmalves/rest2-ons/actions/workflows/lint.yaml/badge.svg)](https://github.com/rjmalves/rest2-ons/actions/workflows/lint.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Generalização ML do Modelo de Radiação Solar REST2** — Aplicação Python para previsão de irradiância solar utilizando parâmetros ajustáveis otimizados com previsões ECMWF CAMS, previsões de COD e dados medidos in-loco.
