@@ -9,7 +9,9 @@ from app.utils.data import PlantArtifact, get_plant_coordinates
 from app.utils.plots import inference_plots, train_evaluation_plots
 
 
-def write_plant_artifacts(config: Config, results: dict[str, PlantTrainResult]):
+def write_plant_artifacts(
+    config: Config, results: dict[str, PlantTrainResult]
+) -> None:
     storage = StorageFactory.get_storage(config.artifact)
     storage.makedirs(config.artifact)
     for plant_id, result in results.items():
@@ -33,7 +35,7 @@ def write_plant_train_plots(
     config: Config,
     results: dict[str, PlantTrainResult],
     reader: InputData,
-):
+) -> None:
     storage = StorageFactory.get_storage(config.artifact)
     for plant_id, result in results.items():
         output_dir = storage.join_path(config.artifact, "plots")
@@ -59,7 +61,7 @@ def write_plant_train_plots(
 
 def write_inference_results(
     config: Config, results: dict[str, PlantInferenceResult]
-):
+) -> None:
     storage = StorageFactory.get_storage(config.output)
     storage.makedirs(config.output)
     for plant_id, result in results.items():
@@ -72,7 +74,7 @@ def write_plant_inference_plots(
     config: Config,
     results: dict[str, PlantInferenceResult],
     reader: InputData,
-):
+) -> None:
     storage = StorageFactory.get_storage(config.output)
     for plant_id, result in results.items():
         output_dir = storage.join_path(config.output, "plots")

@@ -33,7 +33,7 @@ def load_config(config_path: str) -> Config:
     return Config.from_json(config_path)
 
 
-def main():
+def main() -> None:
     _configure_logging()
     parser = build_parser()
     args = parser.parse_args()
@@ -46,22 +46,22 @@ def main():
 
         if mode == "train":
             logger.info("Starting training mode...")
-            manager = TrainManager(config, reader)
-            results = manager.train()
+            train_manager = TrainManager(config, reader)
+            train_results = train_manager.train()
             logger.info("Training completed successfully!")
-            write_plant_artifacts(config, results)
+            write_plant_artifacts(config, train_results)
             if config.postprocessing.plots:
-                write_plant_train_plots(config, results, reader)
+                write_plant_train_plots(config, train_results, reader)
             logger.info("Artifacts written successfully!")
         elif mode == "inference":
             logger.info("Starting inference mode...")
             artifacts = read_plant_artifacts(config)
-            manager = InferenceManager(config, reader)
-            results = manager.predict(artifacts)
+            inference_manager = InferenceManager(config, reader)
+            inference_results = inference_manager.predict(artifacts)
             logger.info("Inference completed successfully!")
-            write_inference_results(config, results)
+            write_inference_results(config, inference_results)
             if config.postprocessing.plots:
-                write_plant_inference_plots(config, results, reader)
+                write_plant_inference_plots(config, inference_results, reader)
             logger.info("Results written successfully!")
         else:
             logger.error("Unknown mode: %s", mode)

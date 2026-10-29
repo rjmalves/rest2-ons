@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import polars as pl
 
@@ -23,10 +22,10 @@ class PlantResult:
 
 
 class InferenceManager:
-    def __init__(self, config: Config, reader: InputData):
+    def __init__(self, config: Config, reader: InputData) -> None:
         self.config = config
         self.reader = reader
-        self._plants: Optional[pl.DataFrame] = None
+        self._plants: pl.DataFrame | None = None
 
     @property
     def plants(self) -> pl.DataFrame:
@@ -40,7 +39,7 @@ class InferenceManager:
         lon: float,
         start: datetime,
         end: datetime,
-        parameters: dict,
+        parameters: dict[str, float],
     ) -> PlantResult:
         location_data = (
             self.reader.for_location(lat, lon)

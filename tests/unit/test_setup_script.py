@@ -9,7 +9,7 @@ pytestmark = pytest.mark.unit
 SETUP_SCRIPT = Path(__file__).resolve().parents[2] / "setup.sh"
 
 
-def test_setup_script_parses():
+def test_setup_script_parses() -> None:
     result = subprocess.run(
         ["bash", "-n", str(SETUP_SCRIPT)],
         capture_output=True,
@@ -21,7 +21,7 @@ def test_setup_script_parses():
     assert result.stderr == "", result.stderr
 
 
-def test_setup_script_help_exits_zero():
+def test_setup_script_help_exits_zero() -> None:
     result = subprocess.run(
         [str(SETUP_SCRIPT), "--help"],
         capture_output=True,
@@ -33,7 +33,7 @@ def test_setup_script_help_exits_zero():
     assert "Usage:" in result.stdout, result.stderr
 
 
-def test_setup_script_runs_past_mode_selection(tmp_path):
+def test_setup_script_runs_past_mode_selection(tmp_path: Path) -> None:
     result = subprocess.run(
         [str(SETUP_SCRIPT), "--user", "--uninstall"],
         capture_output=True,

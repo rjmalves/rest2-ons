@@ -39,7 +39,7 @@ class StorageFactory:
             return cls._local_backend
 
     @classmethod
-    def clear_cache(cls):
+    def clear_cache(cls) -> None:
         """Clear cached backend instances (useful for testing)."""
         cls._local_backend = None
         cls._s3_backend = None

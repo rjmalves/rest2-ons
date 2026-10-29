@@ -1,16 +1,17 @@
 import logging
 from collections.abc import Callable
-from typing import Union
 
 import numpy as np
 import polars as pl
+
+# scipy ships no inline types; scipy-stubs is not a dependency.
 from scipy.optimize import minimize  # type: ignore[import-untyped]
 
 from app.readers import LocationInputData
 from app.utils.metrics import mae, me, rmse
 from app.utils.utils import extraterrestrial_radiation
 
-ArrayLike = Union[np.ndarray, float, int]
+ArrayLike = np.ndarray | float | int
 
 logger = logging.getLogger(__name__)
 
@@ -299,8 +300,9 @@ class REST2:
             )
         )
         # air mass for nitrogen dioxide absorption
-        # amn = np.abs(np.power(np.cos(zenith_angle) + 1.1212 * np.power(zenith_angle * 180. / np.pi, 1.6132) / np.power(
-        #   3.2629 - zenith_angle * 180. / np.pi, 1.9203), -1))
+        # amn = np.abs(np.power(np.cos(zenith_angle)
+        #   + 1.1212 * np.power(zenith_angle * 180. / np.pi, 1.6132)
+        #   / np.power(3.2629 - zenith_angle * 180. / np.pi, 1.9203), -1))
         # air mass for ozone absorption
         amo = np.abs(
             np.power(
@@ -403,13 +405,17 @@ class REST2:
         Tn1_middle = (1 + g1 * amw + g2 * np.power(amw, 2)) / (1 + g3 * amw)
         Tn1_middle[Tn1_middle > 1] = 1
         Tn1 = Tn1_middle
-        # Tn1 = min(1, ((1 + g1 * amw + g2 * np.power(amw, 2)) / (1 + g3 * amw)))
+        # Tn1 = min(
+        #     1, ((1 + g1 * amw + g2 * np.power(amw, 2)) / (1 + g3 * amw))
+        # )
         Tn1166_middle = (1 + g1 * 1.66 + g2 * np.power(1.66, 2)) / (
             1 + g3 * 1.66
         )
         Tn1166_middle[Tn1166_middle > 1] = 1
         Tn1166 = Tn1166_middle
-        # Tn1166 = min(1, ((1 + g1 * 1.66 + g2 * np.power(1.66, 2)) / (1 + g3 * 1.66)))  # atairmass = 1.66
+        # Tn1166 = min(
+        #     1, ((1 + g1 * 1.66 + g2 * np.power(1.66, 2)) / (1 + g3 * 1.66))
+        # )  # atairmass = 1.66
         # transmittance for Water Vapor absorption
         h1 = (
             water_vapour
@@ -624,8 +630,11 @@ class REST2:
     def _cloud_transmittance(
         self, cod: np.ndarray, mu0: float, g: float
     ) -> CloudTransmittanceResults:
-        # Cloud Transmittance -> TC Band 1 = TC Band 2, assuming the cloud as a grey/white body
-        # g = 0.85  #  For liquid water clouds, scattering is mostly in the forward direction, with g≃0.85, whereas for ice clouds g≃0.7 - https://amt.copernicus.org/articles/16/4975/2023/#bib1.bibx53
+        # Cloud Transmittance -> TC Band 1 = TC Band 2, assuming the cloud as a
+        # grey/white body
+        # g = 0.85  #  For liquid water clouds, scattering is mostly in the
+        # forward direction, with g≃0.85, whereas for ice clouds g≃0.7 -
+        # https://amt.copernicus.org/articles/16/4975/2023/#bib1.bibx53
         direct_transmittance = np.exp(
             -1 * cod / (0.5 + mu0)
         )  # Pg 412 (Direct and Diffuse Transmittance) - Livro Petty, 2006
@@ -712,7 +721,7 @@ class REST2:
         surface_albedo: np.ndarray,
         radiation: BandRadiationResults,
         transmittance: CloudTransmittanceResults,
-    ):
+    ) -> tuple[BandIrradianceResults, BandIrradianceResults]:
         TR2 = radiation.TR
         Tg2 = radiation.Tg
         To2 = radiation.To
@@ -779,7 +788,7 @@ class REST2:
         zenith_angle: np.ndarray,
         band1_clear_sky: BandIrradianceResults,
         band2_clear_sky: BandIrradianceResults,
-    ):
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         Ebn1 = band1_clear_sky.direct_beam
         Ebn2 = band2_clear_sky.direct_beam
         Edp1 = band1_clear_sky.diffuse_on_absorbing_ground
@@ -817,7 +826,7 @@ class REST2:
         zenith_angle: np.ndarray,
         band1_cloud_sky: BandIrradianceResults,
         band2_cloud_sky: BandIrradianceResults,
-    ):
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         Ebn1_cloud = band1_cloud_sky.direct_beam
         Ebn2_cloud = band2_cloud_sky.direct_beam
         Edp1_cloud = band1_cloud_sky.diffuse_on_absorbing_ground
@@ -860,7 +869,7 @@ class REST2:
         surface_albedo: np.ndarray,
         optical_depth_550nm: np.ndarray,
         cod: np.ndarray,
-        parameters: dict,
+        parameters: dict[str, float],
     ) -> tuple[
         np.ndarray,
         np.ndarray,
@@ -926,7 +935,7 @@ class REST2:
         )
 
     def convert_radiation(
-        self, parameters: dict = DEFAULT_PARAMETERS
+        self, parameters: dict[str, float] = DEFAULT_PARAMETERS
     ) -> REST2Result:
         ghi, ghi_tracker, dni, dhi, ghi_cs, ghi_tracker_cs, dni_cs, dhi_cs = (
             self._internal_convert_radiation(
@@ -950,7 +959,9 @@ class REST2:
 
         return self.result
 
-    def _fit(self, objective: Callable[[np.ndarray], float]) -> dict:
+    def _fit(
+        self, objective: Callable[[np.ndarray], float]
+    ) -> dict[str, float]:
         parameter_keys = list(self.DEFAULT_PARAMETERS.keys())
         parameter_initial_values = np.array(
             [self.DEFAULT_PARAMETERS[key] for key in parameter_keys]
@@ -961,7 +972,7 @@ class REST2:
             method="L-BFGS-B",
             bounds=[self.PARAMETER_BOUNDS[key] for key in parameter_keys],
         )
-        fitted = dict(zip(parameter_keys, res.x))
+        fitted = dict(zip(parameter_keys, res.x, strict=True))
         for key, value in fitted.items():
             lower, upper = self.PARAMETER_BOUNDS[key]
             for side, bound in (("lower", lower), ("upper", upper)):
@@ -978,11 +989,13 @@ class REST2:
                     )
         return fitted
 
-    def train(self, measured: pl.DataFrame, *, radiation_type: str) -> dict:
+    def train(
+        self, measured: pl.DataFrame, *, radiation_type: str
+    ) -> dict[str, float]:
         parameter_keys = list(self.DEFAULT_PARAMETERS.keys())
 
         def f(params: np.ndarray) -> float:
-            params_dict = dict(zip(parameter_keys, params))
+            params_dict = dict(zip(parameter_keys, params, strict=True))
             result = self.convert_radiation(params_dict)
             return rmse(*_align_on_time(measured, result.get(radiation_type)))
 
@@ -994,11 +1007,13 @@ class REST2:
         measured: pl.DataFrame,
         *,
         radiation_type: str,
-    ) -> dict:
+    ) -> dict[str, float]:
         measured_values, modeled_values = _align_on_time(
             measured, result.get(radiation_type)
         )
         return {
             name: metric(measured_values, modeled_values)
-            for name, metric in zip(["ME", "MAE", "RMSE"], [me, mae, rmse])
+            for name, metric in zip(
+                ["ME", "MAE", "RMSE"], [me, mae, rmse], strict=True
+            )
         }

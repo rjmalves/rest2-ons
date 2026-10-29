@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import polars as pl
 
@@ -15,16 +14,16 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class TrainResult:
-    parameters: dict
+    parameters: dict[str, float]
     radiation: REST2Result
-    metrics: dict
+    metrics: dict[str, float]
     radiation_type: str
 
 
 @dataclass
 class EvaluationResult:
     radiation: REST2Result
-    metrics: dict
+    metrics: dict[str, float]
     radiation_type: str
 
 
@@ -36,10 +35,10 @@ class PlantResult:
 
 
 class TrainManager:
-    def __init__(self, config: Config, reader: InputData):
+    def __init__(self, config: Config, reader: InputData) -> None:
         self.config = config
         self.reader = reader
-        self._plants: Optional[pl.DataFrame] = None
+        self._plants: pl.DataFrame | None = None
 
     @property
     def plants(self) -> pl.DataFrame:
@@ -88,7 +87,7 @@ class TrainManager:
         lon: float,
         start: datetime,
         end: datetime,
-        parameters: dict,
+        parameters: dict[str, float],
     ) -> EvaluationResult:
         location_data = (
             self.reader.for_location(lat, lon)

@@ -92,7 +92,7 @@ def test_in_sample_metrics_score_the_target_type(
     ids=["train", "evaluate"],
 )
 def test_radiation_type_is_required_keyword(
-    method: Callable[..., dict],
+    method: Callable[..., dict[str, float]],
 ) -> None:
     parameter = inspect.signature(method).parameters["radiation_type"]
 

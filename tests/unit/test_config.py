@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -13,7 +14,7 @@ from app.internal.config import (
 class TestTimeWindow:
     """Test TimeWindow dataclass."""
 
-    def test_parse_valid(self):
+    def test_parse_valid(self) -> None:
         """Test parsing valid time window string."""
         window_str = "2024-01-01T00:00:00/2024-02-01T00:00:00"
         window = TimeWindow.parse(window_str)
@@ -21,7 +22,7 @@ class TestTimeWindow:
         assert window.start == datetime(2024, 1, 1, 0, 0, 0)
         assert window.end == datetime(2024, 2, 1, 0, 0, 0)
 
-    def test_parse_with_time(self):
+    def test_parse_with_time(self) -> None:
         """Test parsing time window with specific times."""
         window_str = "2024-01-01T12:30:00/2024-01-02T18:45:00"
         window = TimeWindow.parse(window_str)
@@ -29,7 +30,7 @@ class TestTimeWindow:
         assert window.start == datetime(2024, 1, 1, 12, 30, 0)
         assert window.end == datetime(2024, 1, 2, 18, 45, 0)
 
-    def test_direct_construction(self):
+    def test_direct_construction(self) -> None:
         """Test direct construction."""
         window = TimeWindow(
             start=datetime(2024, 1, 1), end=datetime(2024, 2, 1)
@@ -41,7 +42,7 @@ class TestTimeWindow:
 class TestTimeWindows:
     """Test TimeWindows dataclass."""
 
-    def test_parse_all_windows(self):
+    def test_parse_all_windows(self) -> None:
         """Test parsing all time windows."""
         windows_dict = {
             "training": "2024-01-01T00:00:00/2024-02-01T00:00:00",
@@ -60,19 +61,19 @@ class TestTimeWindows:
 class TestPostprocessingConfig:
     """Test PostprocessingConfig dataclass."""
 
-    def test_parse_with_all_options(self):
+    def test_parse_with_all_options(self) -> None:
         """Test parsing with all options enabled."""
         config = PostprocessingConfig.parse({"errors": True, "plots": True})
         assert config.errors is True
         assert config.plots is True
 
-    def test_parse_default(self):
+    def test_parse_default(self) -> None:
         """Test parsing with missing keys uses defaults."""
         config = PostprocessingConfig.parse({})
         assert config.errors is False
         assert config.plots is False
 
-    def test_parse_partial(self):
+    def test_parse_partial(self) -> None:
         """Test parsing with some options."""
         config = PostprocessingConfig.parse({"errors": True})
         assert config.errors is True
@@ -82,7 +83,7 @@ class TestPostprocessingConfig:
 class TestConfig:
     """Test main Config dataclass."""
 
-    def test_parse_complete_config(self):
+    def test_parse_complete_config(self) -> None:
         """Test parsing a complete configuration."""
         data = {
             "mode": "train",
@@ -113,7 +114,7 @@ class TestConfig:
         assert config.postprocessing.errors is True
         assert config.postprocessing.plots is True
 
-    def test_parse_minimal_config(self):
+    def test_parse_minimal_config(self) -> None:
         """Test parsing minimal configuration (defaults)."""
         data = {
             "mode": "inference",
@@ -135,7 +136,7 @@ class TestConfig:
         assert config.postprocessing.plots is False
         assert config.postprocessing.errors is False
 
-    def test_parse_s3_paths(self):
+    def test_parse_s3_paths(self) -> None:
         """Test parsing configuration with S3 paths."""
         data = {
             "mode": "inference",
@@ -158,7 +159,7 @@ class TestConfig:
         assert config.output.startswith("s3://")
         assert config.artifact.startswith("s3://")
 
-    def test_from_json(self, tmp_path):
+    def test_from_json(self, tmp_path: Path) -> None:
         """Test loading configuration from JSON file."""
         config_data = """{
             "mode": "train",
@@ -183,7 +184,7 @@ class TestConfig:
         assert config.mode == "train"
         assert config.plant_ids == ["PLANT001"]
 
-    def test_from_json_with_comments(self, tmp_path):
+    def test_from_json_with_comments(self, tmp_path: Path) -> None:
         """Test loading JSON with comments (JSONC format)."""
         config_data = """{
             // This is a comment
@@ -211,7 +212,7 @@ class TestConfig:
         assert config.mode == "inference"
         assert config.target_radiation_type == "dni"
 
-    def test_missing_required_field(self):
+    def test_missing_required_field(self) -> None:
         """Test that missing required field raises error."""
         data = {
             "mode": "train",
@@ -224,7 +225,7 @@ class TestConfig:
 
 
 @pytest.mark.unit
-def test_config_roundtrip(tmp_path):
+def test_config_roundtrip(tmp_path: Path) -> None:
     """Test that config can be saved and loaded preserving values."""
     import json
 

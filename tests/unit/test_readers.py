@@ -11,7 +11,7 @@ from app.readers import InputData, LocationDataBuilder, LocationInputData
 class TestLocationInputData:
     """Test LocationInputData dataclass."""
 
-    def test_apply_unit_conversions_leaves_hpa_pressure_unchanged(self):
+    def test_apply_unit_conversions_leaves_hpa_pressure_unchanged(self) -> None:
         """Test unit conversions are applied correctly."""
         # Create minimal input data
         time_data = pl.DataFrame({"time": [datetime(2024, 1, 15, 12, 0)]})
@@ -51,7 +51,7 @@ class TestLocationInputData:
             "H2O conversion failed"
         )
 
-    def test_calculate_derived_fields(self):
+    def test_calculate_derived_fields(self) -> None:
         """Test Angstrom exponent calculation."""
         time_data = pl.DataFrame({"time": [datetime(2024, 1, 15, 12, 0)]})
 
@@ -76,7 +76,7 @@ class TestLocationInputData:
         assert "valor" in location_data.angstrom_exponent.columns
         assert len(location_data.angstrom_exponent) == 1
 
-    def test_get_rest2_inputs(self):
+    def test_get_rest2_inputs(self) -> None:
         """Test REST2 input dictionary generation."""
         time_data = pl.DataFrame({"time": [datetime(2024, 1, 15, 12, 0)]})
         angstrom_data = time_data.with_columns(pl.lit(1.3).alias("valor"))
@@ -115,19 +115,19 @@ class TestLocationInputData:
 class TestInputData:
     """Test InputData reader."""
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test InputData initialization."""
         reader = InputData("data/input")
         assert reader.path == "data/input"
         assert reader.storage is not None
 
-    def test_initialization_with_s3(self):
+    def test_initialization_with_s3(self) -> None:
         """Test InputData initialization with S3 path."""
         reader = InputData("s3://bucket/input")
         assert reader.path == "s3://bucket/input"
         assert reader.storage is not None
 
-    def test_apply_filters_single_value(self):
+    def test_apply_filters_single_value(self) -> None:
         """Test filtering with single value."""
         reader = InputData("data/input")
 
@@ -144,7 +144,7 @@ class TestInputData:
         assert len(result) == 1
         assert result["id"][0] == "B"
 
-    def test_apply_filters_list_value(self):
+    def test_apply_filters_list_value(self) -> None:
         """Test filtering with list of values."""
         reader = InputData("data/input")
 
@@ -161,7 +161,7 @@ class TestInputData:
         assert len(result) == 2
         assert set(result["id"].to_list()) == {"A", "C"}
 
-    def test_for_location_returns_builder(self):
+    def test_for_location_returns_builder(self) -> None:
         """Test that for_location returns a builder."""
         reader = InputData("data/input")
         builder = reader.for_location(-22.5, -45.5)
@@ -170,7 +170,7 @@ class TestInputData:
         assert builder.latitude == -22.5
         assert builder.longitude == -45.5
 
-    def test_filter_forecasting_day(self):
+    def test_filter_forecasting_day(self) -> None:
         """Test filtering by forecasting day."""
         # Create sample data with multiple forecasting days
         df = pl.DataFrame(
@@ -199,7 +199,7 @@ class TestInputData:
 class TestLocationDataBuilder:
     """Test LocationDataBuilder."""
 
-    def test_builder_chain(self):
+    def test_builder_chain(self) -> None:
         """Test builder method chaining."""
         reader = InputData("data/input")
         builder = (
@@ -248,15 +248,15 @@ def _write_input_files(tmp_path: Path, psurf_value: float) -> None:
 class TestReadBoundaryUnits:
     """The declared input units are enforced where the files are read."""
 
-    def test_pa_pressure_fails_at_read_boundary(self, tmp_path):
+    def test_pa_pressure_fails_at_read_boundary(self, tmp_path: Path) -> None:
         _write_input_files(tmp_path, psurf_value=101325.0)
 
         builder = InputData(str(tmp_path)).for_location(-22.5, -45.5)
 
-        with pytest.raises(InputUnitMismatchError, match="psurf.*hPa"):
+        with pytest.raises(InputUnitMismatchError, match=r"psurf.*hPa"):
             builder.forecasting_day_filter(0).build()
 
-    def test_hpa_pressure_reads_unchanged(self, tmp_path):
+    def test_hpa_pressure_reads_unchanged(self, tmp_path: Path) -> None:
         _write_input_files(tmp_path, psurf_value=1013.25)
 
         location_data = (
@@ -274,7 +274,9 @@ class TestReadBoundaryUnits:
 class TestReadersDataFlow:
     """Test data flow through readers."""
 
-    def test_read_method_parquet(self, tmp_path, sample_atmospheric_data):
+    def test_read_method_parquet(
+        self, tmp_path: Path, sample_atmospheric_data: pl.DataFrame
+    ) -> None:
         """Test _read method with parquet files."""
         # Write test data
         test_file = tmp_path / "test.parquet"
@@ -285,7 +287,7 @@ class TestReadersDataFlow:
 
         assert len(result) == len(sample_atmospheric_data)
 
-    def test_read_method_csv(self, tmp_path):
+    def test_read_method_csv(self, tmp_path: Path) -> None:
         """Test _read method with CSV files."""
         test_df = pl.DataFrame(
             {
@@ -301,7 +303,7 @@ class TestReadersDataFlow:
 
         assert len(result) == 3
 
-    def test_read_method_unsupported_format(self):
+    def test_read_method_unsupported_format(self) -> None:
         """Test _read method with unsupported format raises error."""
         reader = InputData("data/input")
 

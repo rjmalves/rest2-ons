@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 
 import polars as pl
 import pytest
@@ -14,8 +15,11 @@ class TestFullPipeline:
 
     @pytest.fixture
     def setup_test_data(
-        self, tmp_path, sample_atmospheric_data, sample_cod_data
-    ):
+        self,
+        tmp_path: Path,
+        sample_atmospheric_data: pl.DataFrame,
+        sample_cod_data: pl.DataFrame,
+    ) -> Path:
         """Set up test data files in temporary directory."""
         input_dir = tmp_path / "input"
         input_dir.mkdir()
@@ -45,7 +49,9 @@ class TestFullPipeline:
         return input_dir
 
     @pytest.fixture
-    def setup_measured_data(self, tmp_path, sample_measured_data):
+    def setup_measured_data(
+        self, tmp_path: Path, sample_measured_data: pl.DataFrame
+    ) -> Path:
         """Set up measured irradiance data."""
         input_dir = tmp_path / "input"
         if not input_dir.exists():
@@ -57,7 +63,9 @@ class TestFullPipeline:
         return input_dir
 
     @pytest.fixture
-    def setup_usinas_data(self, tmp_path, sample_usinas_data):
+    def setup_usinas_data(
+        self, tmp_path: Path, sample_usinas_data: pl.DataFrame
+    ) -> Path:
         """Set up plant metadata."""
         input_dir = tmp_path / "input"
         if not input_dir.exists():
@@ -66,7 +74,9 @@ class TestFullPipeline:
         sample_usinas_data.write_csv(input_dir / "usinas.csv")
         return input_dir
 
-    def test_input_data_reads_files(self, setup_test_data, setup_usinas_data):
+    def test_input_data_reads_files(
+        self, setup_test_data: Path, setup_usinas_data: Path
+    ) -> None:
         """Test that InputData can read all required files."""
         reader = InputData(str(setup_test_data))
 
@@ -75,7 +85,9 @@ class TestFullPipeline:
         assert len(usinas) > 0
         assert "id_usina" in usinas.columns
 
-    def test_fixture_files_match_declared_units(self, setup_test_data):
+    def test_fixture_files_match_declared_units(
+        self, setup_test_data: Path
+    ) -> None:
         """Test that every fixture file is plausible in its declared unit."""
         stem_to_input = {
             "albedo": "albedo",
@@ -93,7 +105,7 @@ class TestFullPipeline:
             df = pl.read_parquet(setup_test_data / f"{stem}.parquet")
             validate_input_units(input_name, df["valor"])
 
-    def test_storage_factory_with_local_path(self, tmp_path):
+    def test_storage_factory_with_local_path(self, tmp_path: Path) -> None:
         """Test StorageFactory returns correct backend for local path."""
         storage = StorageFactory.get_storage(str(tmp_path))
         assert storage is not None
@@ -111,15 +123,15 @@ class TestFullPipeline:
 class TestPipelineErrorHandling:
     """Test error handling in the pipeline."""
 
-    def test_missing_input_directory(self, tmp_path):
+    def test_missing_input_directory(self, tmp_path: Path) -> None:
         """Test that missing input directory is handled."""
         reader = InputData(str(tmp_path / "nonexistent"))
 
         # Should raise error when trying to read
-        with pytest.raises(Exception):
+        with pytest.raises(FileNotFoundError):
             reader.read_usinas()
 
-    def test_missing_required_file(self, tmp_path):
+    def test_missing_required_file(self, tmp_path: Path) -> None:
         """Test handling of missing required files."""
         input_dir = tmp_path / "input"
         input_dir.mkdir()
@@ -127,7 +139,7 @@ class TestPipelineErrorHandling:
         reader = InputData(str(input_dir))
 
         # Should raise error for missing usinas.csv
-        with pytest.raises(Exception):
+        with pytest.raises(FileNotFoundError):
             reader.read_usinas()
 
 
@@ -135,7 +147,9 @@ class TestPipelineErrorHandling:
 class TestStorageBackendIntegration:
     """Test storage backend integration with readers/writers."""
 
-    def test_local_parquet_roundtrip(self, tmp_path, sample_atmospheric_data):
+    def test_local_parquet_roundtrip(
+        self, tmp_path: Path, sample_atmospheric_data: pl.DataFrame
+    ) -> None:
         """Test reading and writing parquet via local storage."""
         storage = StorageFactory.get_storage(str(tmp_path))
 
@@ -150,7 +164,7 @@ class TestStorageBackendIntegration:
         assert len(df_read) == len(sample_atmospheric_data)
         assert set(df_read.columns) == set(sample_atmospheric_data.columns)
 
-    def test_directory_creation(self, tmp_path):
+    def test_directory_creation(self, tmp_path: Path) -> None:
         """Test creating nested directories."""
         storage = StorageFactory.get_storage(str(tmp_path))
 
@@ -159,7 +173,7 @@ class TestStorageBackendIntegration:
 
         assert (tmp_path / "a" / "b" / "c").exists()
 
-    def test_file_listing(self, tmp_path):
+    def test_file_listing(self, tmp_path: Path) -> None:
         """Test listing files with pattern."""
         storage = StorageFactory.get_storage(str(tmp_path))
 
@@ -178,8 +192,8 @@ class TestS3Integration:
     """Test S3 integration with moto."""
 
     def test_s3_parquet_roundtrip(
-        self, mock_s3_bucket, sample_atmospheric_data
-    ):
+        self, mock_s3_bucket: str, sample_atmospheric_data: pl.DataFrame
+    ) -> None:
         """Test reading and writing parquet via S3 storage."""
         from app.storage import S3Backend
 
@@ -197,7 +211,7 @@ class TestS3Integration:
         # Verify file exists
         assert storage.exists(test_path)
 
-    def test_s3_bytes_roundtrip(self, mock_s3_bucket):
+    def test_s3_bytes_roundtrip(self, mock_s3_bucket: str) -> None:
         """Test reading and writing bytes via S3."""
         from app.storage import S3Backend
 
@@ -218,9 +232,10 @@ class TestS3Integration:
 class TestPipelinePerformance:
     """Performance tests for the pipeline."""
 
-    def test_large_dataset_handling(self, tmp_path):
+    def test_large_dataset_handling(self, tmp_path: Path) -> None:
         """Test handling of larger datasets."""
         import time
+
         import numpy as np
 
         # Generate larger dataset

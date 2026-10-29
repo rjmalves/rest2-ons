@@ -206,7 +206,10 @@ def sample_usinas_data() -> pl.DataFrame:
 
 @pytest.fixture
 def rest2_location_data() -> LocationInputData:
-    """144 ten-minute steps of constant atmosphere in model units, with seeded COD."""
+    """144 ten-minute steps of constant atmosphere in model units.
+
+    The cloud optical depth is seeded.
+    """
     times = [
         datetime(2024, 1, 15) + timedelta(minutes=10 * i) for i in range(144)
     ]
@@ -256,7 +259,7 @@ def truth_measured(
 
 
 @pytest.fixture
-def mock_s3_bucket():
+def mock_s3_bucket() -> Generator[str, None, None]:
     """
     Create a mock S3 bucket using moto.
 
@@ -296,7 +299,7 @@ def mock_s3_bucket():
 
 
 # Markers for different test categories
-def pytest_configure(config):
+def pytest_configure(config: pytest.Config) -> None:
     """Configure custom pytest markers."""
     config.addinivalue_line(
         "markers", "unit: Unit tests for individual components"

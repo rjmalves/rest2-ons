@@ -19,13 +19,13 @@ def _modeled_values(rest2: REST2) -> np.ndarray:
 def test_aligned_data_reproduces_pre_change_fit(
     rest2_location_data: LocationInputData,
     truth_measured: Callable[..., pl.DataFrame],
-):
+) -> None:
     rest2 = REST2(rest2_location_data)
     measured = truth_measured("ghi")
 
     def positional_objective(params: np.ndarray) -> float:
         result = rest2.convert_radiation(
-            dict(zip(REST2.DEFAULT_PARAMETERS, params))
+            dict(zip(REST2.DEFAULT_PARAMETERS, params, strict=True))
         )
         return rmse(
             np.array(measured["valor"]), np.array(result.get("ghi")["valor"])
@@ -42,7 +42,7 @@ def test_aligned_data_reproduces_pre_change_fit(
 def test_partial_overlap_scores_only_the_intersection(
     rest2_location_data: LocationInputData,
     truth_measured: Callable[..., pl.DataFrame],
-):
+) -> None:
     rest2 = REST2(rest2_location_data)
     measured = truth_measured("ghi")
     extra = pl.DataFrame(
@@ -75,7 +75,7 @@ def test_partial_overlap_scores_only_the_intersection(
 def test_offset_series_are_not_paired_by_position(
     rest2_location_data: LocationInputData,
     truth_measured: Callable[..., pl.DataFrame],
-):
+) -> None:
     rest2 = REST2(rest2_location_data)
     measured = truth_measured("ghi")
     shifted = measured.with_columns(pl.col("time") + pl.duration(minutes=10))
@@ -95,7 +95,7 @@ def test_offset_series_are_not_paired_by_position(
 def test_zero_overlap_raises(
     rest2_location_data: LocationInputData,
     truth_measured: Callable[..., pl.DataFrame],
-):
+) -> None:
     rest2 = REST2(rest2_location_data)
     shifted = truth_measured("ghi").with_columns(
         pl.col("time") + pl.duration(days=2)

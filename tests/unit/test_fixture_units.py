@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import polars as pl
 
 from app.input_contract import validate_input_units
@@ -19,7 +21,7 @@ STEM_TO_INPUT = {
 }
 
 
-def test_generated_inputs_match_declared_units(tmp_path):
+def test_generated_inputs_match_declared_units(tmp_path: Path) -> None:
     generate_atmospheric_data(tmp_path)
     generate_cod_data(tmp_path)
 

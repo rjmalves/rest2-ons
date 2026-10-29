@@ -1,8 +1,12 @@
 import pandas as pd
+
+# plotly ships no inline types or official stubs.
 import plotly.express as px  # type: ignore[import-untyped]
 import plotly.graph_objects as go  # type: ignore[import-untyped]
 import plotly.io as pio  # type: ignore[import-untyped]
 import polars as pl
+
+# plotly ships no inline types or official stubs.
 from plotly.subplots import make_subplots  # type: ignore[import-untyped]
 
 from app.inference import PlantResult as PlantInferenceResult
@@ -177,7 +181,7 @@ def rest2_train_timeseries_plot(
     df: pd.DataFrame,
     target_column: str,
     filepath: str,
-):
+) -> go.Figure:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
         go.Scatter(
@@ -266,7 +270,7 @@ def rest2_train_steps_timeseries_plot(
     df: pd.DataFrame,
     target_column: str,
     filepath: str,
-):
+) -> go.Figure:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
         go.Scatter(
@@ -355,7 +359,7 @@ def rest2_train_irradiances_timeseries_plot(
     df: pd.DataFrame,
     target_column: str,
     filepath: str,
-):
+) -> go.Figure:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
         go.Scatter(
@@ -456,7 +460,7 @@ def rest2_inference_irradiances_timeseries_plot(
     df: pd.DataFrame,
     target_column: str,
     filepath: str,
-):
+) -> go.Figure:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
         go.Scatter(
@@ -548,7 +552,7 @@ def train_evaluation_plots(
     measured: pl.DataFrame,
     cod: pl.DataFrame,
     filepath_prefix: str,
-):
+) -> None:
     predictions_df = _plant_train_result_with_irradiances_to_df(result)
     target_column = result.train.radiation_type
     df = _join_predictions_with_measured_and_cod(
@@ -574,7 +578,7 @@ def inference_plots(
     result: PlantInferenceResult,
     cod: pl.DataFrame,
     filepath_prefix: str,
-):
+) -> None:
     predictions_df = _plant_inference_result_with_irradiances_to_df(result)
     target_column = result.radiation_type
     df = _join_predictions_with_measured_and_cod(

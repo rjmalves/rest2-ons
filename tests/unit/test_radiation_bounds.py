@@ -7,6 +7,8 @@ from collections.abc import Callable
 import numpy as np
 import polars as pl
 import pytest
+
+# scipy ships no inline types; scipy-stubs is not a dependency.
 from scipy.optimize import minimize  # type: ignore[import-untyped]
 
 from app.readers import LocationInputData
@@ -24,11 +26,11 @@ def _bound_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
     ]
 
 
-def test_parameter_bounds_are_physical():
-    assert REST2.PARAMETER_BOUNDS == {
+def test_parameter_bounds_are_physical() -> None:
+    assert {
         "mu0": (math.cos(math.radians(85.0)) - 0.5, 0.5),
         "g": (0.0, 1.0),
-    }
+    } == REST2.PARAMETER_BOUNDS
     assert list(REST2.PARAMETER_BOUNDS) == list(REST2.DEFAULT_PARAMETERS)
     for key, (lower, upper) in REST2.PARAMETER_BOUNDS.items():
         assert lower <= REST2.DEFAULT_PARAMETERS[key] <= upper
@@ -38,13 +40,15 @@ def test_interior_optimum_matches_unbounded_fit(
     rest2_location_data: LocationInputData,
     truth_measured: Callable[..., pl.DataFrame],
     caplog: pytest.LogCaptureFixture,
-):
+) -> None:
     rest2 = REST2(rest2_location_data)
     measured = truth_measured("ghi")
     parameter_keys = list(REST2.DEFAULT_PARAMETERS)
 
     def unbounded_objective(params: np.ndarray) -> float:
-        result = rest2.convert_radiation(dict(zip(parameter_keys, params)))
+        result = rest2.convert_radiation(
+            dict(zip(parameter_keys, params, strict=True))
+        )
         return rmse(*_align_on_time(measured, result.get("ghi")))
 
     unbounded = minimize(
@@ -56,7 +60,7 @@ def test_interior_optimum_matches_unbounded_fit(
     with caplog.at_level(logging.WARNING, logger=LOGGER_NAME):
         fitted = rest2.train(measured, radiation_type="ghi")
 
-    for key, expected in zip(parameter_keys, unbounded.x):
+    for key, expected in zip(parameter_keys, unbounded.x, strict=True):
         assert fitted[key] == pytest.approx(expected, abs=1e-6)
     assert _bound_warnings(caplog) == []
 
@@ -65,7 +69,7 @@ def test_upper_mu0_bound_is_logged(
     rest2_location_data: LocationInputData,
     truth_measured: Callable[..., pl.DataFrame],
     caplog: pytest.LogCaptureFixture,
-):
+) -> None:
     measured = truth_measured("ghi", scale=1.6)
 
     with caplog.at_level(logging.WARNING, logger=LOGGER_NAME):
@@ -84,7 +88,7 @@ def test_lower_g_bound_is_logged(
     rest2_location_data: LocationInputData,
     truth_measured: Callable[..., pl.DataFrame],
     caplog: pytest.LogCaptureFixture,
-):
+) -> None:
     measured = truth_measured("ghi", scale=0.3)
 
     with caplog.at_level(logging.WARNING, logger=LOGGER_NAME):

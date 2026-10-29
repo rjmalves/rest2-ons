@@ -1,3 +1,5 @@
+from typing import cast
+
 import numpy as np
 import pandas as pd
 
@@ -9,7 +11,7 @@ def me(
     targets = targets.flatten()
     errors = predictions - targets
     errors = errors[~np.isnan(errors)] if ignore_nans else errors
-    return np.mean(errors)
+    return cast(float, np.mean(errors))
 
 
 def mae(
@@ -19,7 +21,7 @@ def mae(
     targets = targets.flatten()
     errors = np.abs(predictions - targets)
     errors = errors[~np.isnan(errors)] if ignore_nans else errors
-    return np.mean(errors)
+    return cast(float, np.mean(errors))
 
 
 def rmse(
@@ -29,11 +31,11 @@ def rmse(
     targets = targets.flatten()
     errors = predictions - targets
     errors = errors[~np.isnan(errors)] if ignore_nans else errors
-    return np.sqrt(np.mean(errors**2))
+    return cast(float, np.sqrt(np.mean(errors**2)))
 
 
 def generate_metrics_df(
-    cams_metrics: dict, rest2_metrics: dict
+    cams_metrics: dict[str, float], rest2_metrics: dict[str, float]
 ) -> pd.DataFrame:
     cams_keys = list(cams_metrics.keys())
     rest2_keys = list(rest2_metrics.keys())

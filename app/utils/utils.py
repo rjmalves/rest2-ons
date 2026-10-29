@@ -1,12 +1,13 @@
 from datetime import datetime
+from typing import cast
 
 import numpy as np
 import pytz
 
 from app.internal.constants import (
     EARTH_RADIUS_KM,
-    SOLAR_IRRADIANCE_CONSTANT_W_m2,
     TIMEZONE,
+    SOLAR_IRRADIANCE_CONSTANT_W_m2,
 )
 
 
@@ -27,7 +28,7 @@ def haversine_distance(
     )
     c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a))
     distance = R * c
-    return distance
+    return cast(float, distance)
 
 
 def extraterrestrial_radiation(

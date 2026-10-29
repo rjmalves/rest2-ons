@@ -53,5 +53,31 @@ rest2-ons = "main:main"
 line-length = 80
 target-version = "py311"
 
+[tool.ruff.lint]
+# PGH bans blanket suppressions: every `# noqa` and `# type: ignore` names
+# its code.
+select = [
+    "E", "F", "W", "I", "UP", "B", "SIM", "RUF", "DTZ", "T20", "PGH",
+]
+ignore = ["RUF012"]
+
+[tool.ruff.lint.per-file-ignores]
+# Timestamps are naive and mean UTC throughout rest2's data contract, so
+# test inputs and the data-preparation scripts build naive datetimes on
+# purpose. app/ and main.py keep the rule.
+"tests/**" = ["DTZ"]
+# The data-preparation scripts and the test-data generator report on stdout
+# by design.
+"scripts/**" = ["DTZ", "T201"]
+"tests/fixtures/generate_test_data.py" = ["T201"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
+
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+# s3fs ships no type information and has no stubs package.
+module = ["s3fs", "s3fs.*"]
+ignore_missing_imports = true

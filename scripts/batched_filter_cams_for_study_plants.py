@@ -1,9 +1,10 @@
 import os
+from datetime import datetime
+from itertools import pairwise
+
+import numpy as np
 import pandas as pd
 import xarray as xr
-from datetime import datetime
-import numpy as np
-
 
 EARTH_RADIUS_KM = 6371.0
 
@@ -274,7 +275,7 @@ class CAMSData:
             "data_hora_previsao",
         ]
 
-        value_col = [c for c in df.columns if c not in index_cols][0]
+        value_col = next(c for c in df.columns if c not in index_cols)
         return df.set_index(index_cols).to_xarray()[value_col]
 
 
@@ -310,7 +311,7 @@ def filter_data_to_study_plants(
 dates = pd.date_range("2023-06-01", "2024-09-01", freq="MS")
 plant_df = pd.read_csv("data/usinas.csv")
 
-for d_ini, d_fin in zip(dates[:-1], dates[1:]):
+for d_ini, d_fin in pairwise(dates):
     cams = CAMSData.read_data(
         "data/cams",
         d_ini,
