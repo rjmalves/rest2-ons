@@ -268,6 +268,35 @@ class TestReadBoundaryUnits:
 
 
 @pytest.mark.unit
+class TestMissingForecastInputs:
+    """A forecast input that cannot be used is named in the error."""
+
+    def test_missing_files_are_named(self, tmp_path: Path) -> None:
+        _write_input_files(tmp_path, psurf_value=1013.25)
+        (tmp_path / "no2.parquet").unlink()
+        (tmp_path / "temp.parquet").unlink()
+
+        builder = InputData(str(tmp_path)).for_location(-22.5, -45.5)
+
+        with pytest.raises(
+            FileNotFoundError, match=r"no2\.parquet, temp\.parquet"
+        ):
+            builder.forecasting_day_filter(0).build()
+
+    def test_file_off_the_albedo_grid_is_named(self, tmp_path: Path) -> None:
+        _write_input_files(tmp_path, psurf_value=1013.25)
+        o3_path = tmp_path / "o3.parquet"
+        pl.read_parquet(o3_path).with_columns(
+            pl.lit(-23.0).alias("latitude")
+        ).write_parquet(o3_path)
+
+        builder = InputData(str(tmp_path)).for_location(-22.5, -45.5)
+
+        with pytest.raises(ValueError, match=r"o3\.parquet.*albedo\.parquet"):
+            builder.forecasting_day_filter(0).build()
+
+
+@pytest.mark.unit
 class TestReadersDataFlow:
     """Test data flow through readers."""
 
