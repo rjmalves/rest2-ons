@@ -1,6 +1,6 @@
 import tempfile
-from collections.abc import Generator
-from datetime import datetime
+from collections.abc import Callable, Generator
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -13,6 +13,8 @@ from app.internal.config import (
     TimeWindow,
     TimeWindows,
 )
+from app.readers import LocationInputData
+from app.services.radiation import REST2
 
 
 @pytest.fixture
@@ -200,6 +202,57 @@ def sample_usinas_data() -> pl.DataFrame:
             "longitude": [-45.5, -44.0],
         }
     )
+
+
+@pytest.fixture
+def rest2_location_data() -> LocationInputData:
+    """144 ten-minute steps of constant atmosphere in model units, with seeded COD."""
+    times = [
+        datetime(2024, 1, 15) + timedelta(minutes=10 * i) for i in range(144)
+    ]
+    cod = np.random.RandomState(42).gamma(2.0, 3.0, 144)
+
+    def series(values: np.ndarray | float) -> pl.DataFrame:
+        return pl.DataFrame({"time": times, "valor": values})
+
+    location = LocationInputData(
+        latitude=-22.5,
+        longitude=-45.5,
+        cod=series(cod),
+        albedo=series(0.2),
+        h2o=series(2.5),
+        no2=series(1e-4),
+        o3=series(0.3),
+        od550=series(0.12),
+        od670=series(0.09),
+        psurf=series(950.0),
+        temp2m=series(25.0),
+    )
+    return location.calculate_derived_fields()
+
+
+@pytest.fixture
+def truth_measured(
+    rest2_location_data: LocationInputData,
+) -> Callable[..., pl.DataFrame]:
+    """Build noisy measured radiation from known REST2 parameters."""
+
+    def build(radiation_type: str, scale: float = 1.0) -> pl.DataFrame:
+        truth = (
+            REST2(rest2_location_data)
+            .convert_radiation({"mu0": 0.2, "g": 0.7})
+            .get(radiation_type)
+        )
+        noise = np.random.RandomState(7).normal(0.0, 10.0, truth.height)
+        values = np.nan_to_num(truth["valor"].to_numpy()) + noise
+        return pl.DataFrame(
+            {
+                "time": truth["time"],
+                "valor": np.clip(values, 0.0, None) * scale,
+            }
+        )
+
+    return build
 
 
 @pytest.fixture

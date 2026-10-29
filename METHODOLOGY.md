@@ -90,24 +90,25 @@ GHI_tracker = DNI + DHI_adjusted
 
 The model optimizes two key parameters:
 
-1. **mu0**: Scaling factor for cloud optical depth effect
+1. **mu0**: Offset of the effective cloud cosine
 
-   - Controls the strength of cloud attenuation
-   - Higher values = stronger cloud effect
+   - Enters the cloud attenuation as `exp(-cod / (0.5 + mu0))`
+   - A higher mu0 means weaker cloud attenuation
+   - Bounded to [cos 85 deg - 0.5, 0.5] = [-0.41284, 0.5], which keeps `0.5 + mu0` in [cos 85 deg, 1]
    - Optimized per location and radiation type
 
-2. **g (Asymmetry Parameter)**:
-   - Describes aerosol scattering phase function
-   - Range: -1 (backward scattering) to +1 (forward scattering)
-   - Typically fixed at 0.85 for atmospheric aerosols
+2. **g (Cloud Asymmetry Parameter)**:
+   - Used in the cloud diffuse transmittance
+   - Bounded to [0, 1]
+   - Optimized together with mu0
 
 ### Optimization Algorithm
 
-**Method**: BFGS (Broyden-Fletcher-Goldfarb-Shanno)
+**Method**: L-BFGS-B (bounded limited-memory BFGS)
 
-- Quasi-Newton optimization method
-- Efficient for small parameter spaces
-- Good convergence properties
+- Quasi-Newton optimization method with box bounds
+- Bounds: mu0 in [cos 85 deg - 0.5, 0.5], g in [0, 1] (`REST2.PARAMETER_BOUNDS`)
+- A fit that ends on a bound is logged as a warning
 
 **Objective Function**:
 
@@ -115,13 +116,15 @@ The model optimizes two key parameters:
 minimize: RMSE(measured, predicted)
 ```
 
+The RMSE is computed on the measured and modeled series inner-joined on timestamp. If the two series share no timestamp, the computation raises an error.
+
 **Process**:
 
 1. Initialize parameters with default values
 2. For each iteration:
    - Calculate radiation using current parameters
    - Compute RMSE against measured data
-   - Update parameters using BFGS gradient approximation
+   - Update parameters using L-BFGS-B within the parameter bounds
 3. Converge when improvement < threshold
 
 ### Training Process
@@ -137,7 +140,7 @@ Steps:
   2. Calculate solar geometry (zenith angle, extraterrestrial radiation)
   3. Apply variable bounds to inputs
   4. Initialize optimization with default parameters
-  5. Run BFGS optimization to minimize RMSE
+  5. Run L-BFGS-B optimization to minimize RMSE
   6. Return optimized parameters
 
 Output:
@@ -207,7 +210,7 @@ RMSE = √[(1/n) × Σ(predicted - measured)²]
 
 3. Model Training (per plant)
    ├─ Calculate solar geometry
-   ├─ Optimize parameters (BFGS)
+   ├─ Optimize parameters (L-BFGS-B)
    └─ Compute in-sample metrics
 
 4. Model Evaluation
@@ -254,7 +257,23 @@ All atmospheric parameters must be provided as time series with columns:
 - `time`: Timestamp (datetime64)
 - `valor`: Parameter value (float)
 
-**Required Parameters**:
+**Declared input units** (declared in `app/input_contract.py` as `DECLARED_UNITS`; enforced at the read boundary):
+
+| Input    | File unit | Envelope (plausible range) |
+| -------- | --------- | -------------------------- |
+| `psurf`  | hPa       | 300 - 1100                 |
+| `temp2m` | degC      | -90 - 60                   |
+| `o3`     | kg m-2    | 0 - 0.05                   |
+| `no2`    | kg m-2    | 0 - 0.001                  |
+| `h2o`    | kg m-2    | 0 - 100                    |
+| `albedo` | 1         | 0 - 1                      |
+| `od550`  | 1         | 0 - 10                     |
+| `od670`  | 1         | 0 - 10                     |
+| `cod`    | 1         | 0 - 1000                   |
+
+`psurf` is read in hPa with no conversion. A column whose 1% or 99% quantile falls outside its envelope is rejected with an error; fewer out-of-envelope values than that only log a warning.
+
+**Required Parameters** (model units after conversion):
 
 | Parameter                     | Variable            | Units         | Typical Range |
 | ----------------------------- | ------------------- | ------------- | ------------- |

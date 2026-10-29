@@ -31,28 +31,6 @@ class PlantResult:
     validation: EvaluationResult | None
     testing: EvaluationResult | None
 
-    def chosen_radiation(self, step: str) -> pl.DataFrame:
-        if step == "train":
-            radiation_object = self.train.radiation
-            radiation_type = self.train.radiation_type
-        elif step == "validation" and self.validation is not None:
-            radiation_object = self.validation.radiation
-            radiation_type = self.validation.radiation_type
-        elif step == "testing" and self.testing is not None:
-            radiation_object = self.testing.radiation
-            radiation_type = self.testing.radiation_type
-
-        if radiation_type == "ghi":
-            return radiation_object.ghi
-        elif radiation_type == "dni":
-            return radiation_object.dni
-        elif radiation_type == "dhi":
-            return radiation_object.dhi
-        if radiation_type == "ghi_tracker":
-            return radiation_object.ghi_tracker
-        else:
-            raise ValueError(f"Unknown radiation type: {radiation_type}")
-
 
 class TrainManager:
     def __init__(self, config: Config, reader: InputData):
@@ -88,7 +66,11 @@ class TrainManager:
             measured_data, radiation_type=self.config.target_radiation_type
         )
         insample_radiation = rest2.convert_radiation(params)
-        insample_metrics = rest2.evaluate(insample_radiation, measured_data)
+        insample_metrics = rest2.evaluate(
+            insample_radiation,
+            measured_data,
+            radiation_type=self.config.target_radiation_type,
+        )
         return TrainResult(
             parameters=params,
             radiation=insample_radiation,
@@ -136,8 +118,6 @@ class TrainManager:
             plant_id, lat, lon, train_start, train_end
         )
 
-        metrics = {"train": training_result.metrics}
-
         validation_window = self.config.time_windows.validation
         val_start, val_end = validation_window.start, validation_window.end
         if val_start and val_end:
@@ -150,7 +130,6 @@ class TrainManager:
                 val_end,
                 training_result.parameters,
             )
-            metrics["validation"] = validation_result.metrics
 
         test_window = self.config.time_windows.test
         test_start, test_end = test_window.start, test_window.end
@@ -164,15 +143,12 @@ class TrainManager:
                 test_end,
                 training_result.parameters,
             )
-            metrics["test"] = testing_result.metrics
 
-        result = PlantResult(
+        return PlantResult(
             train=training_result,
             validation=validation_result if val_start and val_end else None,
             testing=testing_result if test_start and test_end else None,
         )
-
-        return result
 
     def train(self) -> dict[str, PlantResult]:
         results = {}
