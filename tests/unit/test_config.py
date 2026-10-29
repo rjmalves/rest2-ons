@@ -61,23 +61,18 @@ class TestTimeWindows:
 class TestPostprocessingConfig:
     """Test PostprocessingConfig dataclass."""
 
-    def test_parse_with_all_options(self) -> None:
-        """Test parsing with all options enabled."""
-        config = PostprocessingConfig.parse({"errors": True, "plots": True})
-        assert config.errors is True
+    def test_parse_plots(self) -> None:
+        config = PostprocessingConfig.parse({"plots": True})
         assert config.plots is True
 
     def test_parse_default(self) -> None:
-        """Test parsing with missing keys uses defaults."""
         config = PostprocessingConfig.parse({})
-        assert config.errors is False
         assert config.plots is False
 
-    def test_parse_partial(self) -> None:
-        """Test parsing with some options."""
-        config = PostprocessingConfig.parse({"errors": True})
-        assert config.errors is True
-        assert config.plots is False
+    def test_parse_ignores_the_removed_errors_key(self) -> None:
+        config = PostprocessingConfig.parse({"errors": True, "plots": True})
+        assert config.plots is True
+        assert not hasattr(config, "errors")
 
 
 class TestConfig:
@@ -99,7 +94,7 @@ class TestConfig:
                 "test": "2024-03-01T00:00:00/2024-04-01T00:00:00",
                 "inference": "2024-04-01T00:00:00/2024-05-01T00:00:00",
             },
-            "postprocessing": {"errors": True, "plots": True},
+            "postprocessing": {"plots": True},
         }
 
         config = Config.parse(data)
@@ -111,7 +106,6 @@ class TestConfig:
         assert config.plant_ids == ["PLANT001", "PLANT002"]
         assert config.forecasting_day_ahead == 1
         assert config.target_radiation_type == "dni"
-        assert config.postprocessing.errors is True
         assert config.postprocessing.plots is True
 
     def test_parse_minimal_config(self) -> None:
@@ -134,7 +128,6 @@ class TestConfig:
 
         config = Config.parse(data)
         assert config.postprocessing.plots is False
-        assert config.postprocessing.errors is False
 
     def test_parse_s3_paths(self) -> None:
         """Test parsing configuration with S3 paths."""
@@ -243,7 +236,7 @@ def test_config_roundtrip(tmp_path: Path) -> None:
             "test": "2024-03-01T00:00:00/2024-04-01T00:00:00",
             "inference": "2024-04-01T00:00:00/2024-05-01T00:00:00",
         },
-        "postprocessing": {"errors": True, "plots": True},
+        "postprocessing": {"plots": True},
     }
 
     # Save

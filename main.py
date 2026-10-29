@@ -55,7 +55,7 @@ def main() -> None:
             logger.info("Artifacts written successfully!")
         elif mode == "inference":
             logger.info("Starting inference mode...")
-            artifacts = read_plant_artifacts(config)
+            artifacts = read_plant_artifacts(config, reader)
             inference_manager = InferenceManager(config, reader)
             inference_results = inference_manager.predict(artifacts)
             logger.info("Inference completed successfully!")

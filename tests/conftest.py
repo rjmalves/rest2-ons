@@ -15,6 +15,26 @@ from app.internal.config import (
 )
 from app.readers import LocationInputData
 from app.services.radiation import REST2
+from tests.fixtures.generate_test_data import (
+    generate_atmospheric_data,
+    generate_cod_data,
+    generate_measured_data,
+    generate_usinas_metadata,
+)
+
+
+@pytest.fixture(scope="session")
+def generated_input_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Inputs written by ``tests/fixtures/generate_test_data.py``.
+
+    Shared by the whole session, so tests read from it and write elsewhere.
+    """
+    input_dir = tmp_path_factory.mktemp("generated_input")
+    generate_atmospheric_data(input_dir)
+    generate_cod_data(input_dir)
+    generate_measured_data(input_dir)
+    generate_usinas_metadata(input_dir)
+    return input_dir
 
 
 @pytest.fixture
@@ -58,7 +78,7 @@ def sample_config(
         output=str(temp_output_dir),
         artifact=str(temp_output_dir / "artifacts"),
         time_windows=sample_time_windows,
-        postprocessing=PostprocessingConfig(errors=False, plots=False),
+        postprocessing=PostprocessingConfig(plots=False),
         plant_ids=["TEST001"],
         forecasting_day_ahead=0,
         target_radiation_type="ghi",

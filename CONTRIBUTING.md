@@ -433,7 +433,7 @@ Seguimos [Semantic Versioning](https://semver.org/):
 - **MINOR**: novas funcionalidades compatíveis
 - **PATCH**: correções de bugs compatíveis
 
-Atualize o `app/__init__.py` e `CHANGELOG.md` ao lançar versões.
+Atualize o `app/__init__.py` e `CHANGELOG.md` ao lançar versões; um teste confere que a versão do pacote é a última lançada no changelog.
 
 ---
 

@@ -1,4 +1,3 @@
-import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -7,13 +6,23 @@ import numpy as np
 import polars as pl
 import pyjson5
 
-from app.input_contract import InputContractError, validate_input_units
+from app.input_contract import validate_input_units
 from app.internal.config import Config
 from app.storage import StorageFactory
 from app.utils.data import PlantArtifact
 from app.utils.utils import haversine_distance
 
-logger = logging.getLogger(__name__)
+FORECAST_FILES = {
+    "cod": "cod.parquet",
+    "albedo": "albedo.parquet",
+    "h2o": "h2o.parquet",
+    "no2": "no2.parquet",
+    "o3": "o3.parquet",
+    "od550": "od550.parquet",
+    "od670": "od670.parquet",
+    "psurf": "psurf.parquet",
+    "temp2m": "temp.parquet",
+}
 
 
 @dataclass
@@ -173,6 +182,16 @@ class InputData:
             return self._read("usinas.csv", {})
         return self._read("usinas.csv", {"id_usina": ids_usinas})
 
+    def plant_ids(self, selected: list[str] | None) -> list[str]:
+        """``selected`` as given, or every ``id_usina`` in usinas.csv if None.
+
+        A given list is not filtered against usinas.csv, so an unknown id
+        still fails where its coordinates are looked up.
+        """
+        if selected is not None:
+            return selected
+        return self.read_usinas()["id_usina"].to_list()
+
     def _find_nearest_point(
         self,
         target_lat: float,
@@ -210,28 +229,24 @@ class InputData:
         end_date: datetime | None = None,
         forecasting_day: int | None = None,
     ) -> LocationInputData:
-        # Find nearest grid point
+        missing = [
+            filename
+            for filename in FORECAST_FILES.values()
+            if not self.storage.exists(
+                self.storage.join_path(self.path, filename)
+            )
+        ]
+        if missing:
+            raise FileNotFoundError(
+                f"missing input files in {self.path}: {', '.join(missing)}"
+            )
+
         grid_lat, grid_lon = self._find_nearest_point(latitude, longitude)
         cod_lat, cod_lon = self._find_nearest_point(
             latitude, longitude, "cod.parquet"
         )
-        # Define the data fields mapping
-        data_mapping = {
-            "cod": "cod.parquet",
-            "albedo": "albedo.parquet",
-            "h2o": "h2o.parquet",
-            "no2": "no2.parquet",
-            "o3": "o3.parquet",
-            "od550": "od550.parquet",
-            "od670": "od670.parquet",
-            "psurf": "psurf.parquet",
-            "temp2m": "temp.parquet",
-        }
-
-        # Load and process each data field
-        input_data = {}
-        for field_name, filename in data_mapping.items():
-            data = self._load_and_filter_field(
+        input_data = {
+            field_name: self._load_and_filter_field(
                 field_name,
                 filename,
                 grid_lat if field_name != "cod" else cod_lat,
@@ -240,8 +255,8 @@ class InputData:
                 end_date,
                 forecasting_day,
             )
-            if data is not None:
-                input_data[field_name] = data
+            for field_name, filename in FORECAST_FILES.items()
+        }
 
         # Create LocationInputData instance
         location_data = LocationInputData(
@@ -275,42 +290,33 @@ class InputData:
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         forecasting_day: int | None = None,
-    ) -> pl.DataFrame | None:
-        try:
-            file_path = self.storage.join_path(self.path, filename)
-            if not self.storage.exists(file_path):
-                return None
-            df = self.storage.read_parquet(file_path).collect()
-            validate_input_units(input_name, df["valor"])
-            # Filter by coordinates
-            df = df.filter(
-                (pl.col("latitude") == latitude)
-                & (pl.col("longitude") == longitude)
+    ) -> pl.DataFrame:
+        file_path = self.storage.join_path(self.path, filename)
+        df = self.storage.read_parquet(file_path).collect()
+        validate_input_units(input_name, df["valor"])
+        df = df.filter(
+            (pl.col("latitude") == latitude)
+            & (pl.col("longitude") == longitude)
+        )
+        if df.height == 0:
+            raise ValueError(
+                f"{file_path} has no rows at grid point ({latitude}, "
+                f"{longitude}); every CAMS file must share the grid of "
+                f"albedo.parquet"
             )
 
-            if df.height == 0:
-                return None
+        if start_date and end_date:
+            time_col = "data_hora_previsao"
+            df = df.with_columns(pl.col(time_col).cast(pl.Datetime))
+            df = df.filter(
+                (pl.col(time_col) >= start_date)
+                & (pl.col(time_col) <= end_date)
+            )
 
-            # Apply time range filter if specified
-            if start_date and end_date:
-                time_col = "data_hora_previsao"
-                df = df.with_columns(pl.col(time_col).cast(pl.Datetime))
-                df = df.filter(
-                    (pl.col(time_col) >= start_date)
-                    & (pl.col(time_col) <= end_date)
-                )
+        if forecasting_day is not None:
+            df = self.filter_forecasting_day(df, forecasting_day)
 
-            # Apply forecasting day filter if specified
-            if forecasting_day is not None:
-                df = self.filter_forecasting_day(df, forecasting_day)
-
-            return df
-
-        except InputContractError:
-            raise
-        except Exception as e:
-            logger.warning("Could not load %s/%s: %s", self.path, filename, e)
-            return None
+        return df
 
     def read_measured_for_plant(
         self,
@@ -337,6 +343,11 @@ class InputData:
     def filter_forecasting_day(
         cls, df: pl.DataFrame, forecasting_day: int
     ) -> pl.DataFrame:
+        """Rows ``forecasting_day`` whole days of lead time from their run.
+
+        Several runs can forecast one valid time within that day; the latest
+        run is kept, never the first row in file order.
+        """
         df = df.with_columns(
             [
                 pl.col("data_hora_previsao").cast(pl.Datetime),
@@ -356,17 +367,21 @@ class InputData:
             [dia_expr.floor().cast(pl.Int32).alias("dia_previsao")]
         )
 
-        df = df.filter(pl.col("dia_previsao") == forecasting_day)
-        df = df.drop(["dia_previsao", "data_hora_rodada"])
-        df = df.rename({"data_hora_previsao": "time"})
-        df = df.sort("time").unique(subset=["time"])
-        return df
+        return (
+            df.filter(pl.col("dia_previsao") == forecasting_day)
+            .rename({"data_hora_previsao": "time"})
+            .sort("time", "data_hora_rodada")
+            .unique(subset="time", keep="last", maintain_order=True)
+            .drop("dia_previsao", "data_hora_rodada")
+        )
 
 
-def read_plant_artifacts(config: Config) -> dict[str, PlantArtifact]:
+def read_plant_artifacts(
+    config: Config, reader: InputData
+) -> dict[str, PlantArtifact]:
     storage = StorageFactory.get_storage(config.artifact)
     artifacts = {}
-    for plant_id in config.plant_ids or []:
+    for plant_id in reader.plant_ids(config.plant_ids):
         artifact_path = storage.join_path(config.artifact, f"{plant_id}.json")
         data = storage.read_bytes(artifact_path).decode("utf-8")
         artifact_dict = pyjson5.decode(data)

@@ -160,6 +160,42 @@ class TestInputData:
         assert len(filtered) == 1
         assert filtered["valor"][0] == 200.0
 
+    @pytest.mark.parametrize(
+        "row_order",
+        [[0, 1, 2, 3], [3, 2, 1, 0], [2, 0, 3, 1]],
+        ids=["runs-ascending", "runs-descending", "shuffled"],
+    )
+    def test_filter_forecasting_day_keeps_the_latest_run(
+        self, row_order: list[int]
+    ) -> None:
+        # 2024-01-02 18:00 is 42 h after the 00Z run and 30 h after the 12Z
+        # run, both in lead day 1; 06:00 is in lead day 1 only for 00Z (30 h).
+        runs = pl.DataFrame(
+            {
+                "data_hora_rodada": [
+                    datetime(2024, 1, 1, 0),
+                    datetime(2024, 1, 1, 0),
+                    datetime(2024, 1, 1, 12),
+                    datetime(2024, 1, 1, 12),
+                ],
+                "data_hora_previsao": [
+                    datetime(2024, 1, 2, 6),
+                    datetime(2024, 1, 2, 18),
+                    datetime(2024, 1, 2, 6),
+                    datetime(2024, 1, 2, 18),
+                ],
+                "valor": [1.0, 2.0, 3.0, 4.0],
+            }
+        )
+
+        filtered = InputData.filter_forecasting_day(runs[row_order], 1)
+
+        assert filtered["time"].to_list() == [
+            datetime(2024, 1, 2, 6),
+            datetime(2024, 1, 2, 18),
+        ]
+        assert filtered["valor"].to_list() == [1.0, 4.0]
+
 
 class TestLocationDataBuilder:
     """Test LocationDataBuilder."""
@@ -229,6 +265,35 @@ class TestReadBoundaryUnits:
 
         assert location_data.psurf["valor"].unique().to_list() == [1013.25]
         assert location_data.psurf.height == 139
+
+
+@pytest.mark.unit
+class TestMissingForecastInputs:
+    """A forecast input that cannot be used is named in the error."""
+
+    def test_missing_files_are_named(self, tmp_path: Path) -> None:
+        _write_input_files(tmp_path, psurf_value=1013.25)
+        (tmp_path / "no2.parquet").unlink()
+        (tmp_path / "temp.parquet").unlink()
+
+        builder = InputData(str(tmp_path)).for_location(-22.5, -45.5)
+
+        with pytest.raises(
+            FileNotFoundError, match=r"no2\.parquet, temp\.parquet"
+        ):
+            builder.forecasting_day_filter(0).build()
+
+    def test_file_off_the_albedo_grid_is_named(self, tmp_path: Path) -> None:
+        _write_input_files(tmp_path, psurf_value=1013.25)
+        o3_path = tmp_path / "o3.parquet"
+        pl.read_parquet(o3_path).with_columns(
+            pl.lit(-23.0).alias("latitude")
+        ).write_parquet(o3_path)
+
+        builder = InputData(str(tmp_path)).for_location(-22.5, -45.5)
+
+        with pytest.raises(ValueError, match=r"o3\.parquet.*albedo\.parquet"):
+            builder.forecasting_day_filter(0).build()
 
 
 @pytest.mark.unit

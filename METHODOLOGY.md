@@ -252,10 +252,9 @@ RMSE = √[(1/n) × Σ(predicted - measured)²]
 
 ### Atmospheric Parameters
 
-All atmospheric parameters must be provided as time series with columns:
-
-- `time`: Timestamp (datetime64)
-- `valor`: Parameter value (float)
+Each input is a Parquet file of forecasts by grid point, run time and valid
+time. The file names and columns are listed in the
+[README](README.md#dados-de-entrada).
 
 **Declared input units** (declared in `app/input_contract.py` as `DECLARED_UNITS`; enforced at the read boundary):
 
@@ -288,10 +287,9 @@ All atmospheric parameters must be provided as time series with columns:
 
 ### Measured Radiation Data
 
-Time series of ground measurements with columns:
-
-- `time`: Timestamp (datetime64)
-- `valor`: Irradiance (W/m²)
+Ground measurements of irradiance in W/m², read from
+`measured_irradiance.parquet` (columns in the
+[README](README.md#dados-de-entrada)).
 
 **Requirements**:
 
@@ -302,11 +300,8 @@ Time series of ground measurements with columns:
 
 ### Plant Metadata
 
-CSV file (`usinas.csv`) with columns:
-
-- `id`: Unique plant identifier (string)
-- `latitude`: Latitude in decimal degrees (float, -90 to 90)
-- `longitude`: Longitude in decimal degrees (float, -180 to 180)
+`usinas.csv` gives each plant's `id_usina` and its `latitude` and
+`longitude` in decimal degrees.
 
 ## Model Limitations and Considerations
 
