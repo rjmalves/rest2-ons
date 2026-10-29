@@ -12,6 +12,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--config",
         type=str,
         default="config.jsonc",
-        help="Path to configuration JSON file (default: config.json)",
+        help="Path to the JSONC configuration file (default: %(default)s)",
     )
     return parser
