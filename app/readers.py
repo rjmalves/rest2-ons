@@ -100,20 +100,6 @@ class LocationInputData:
             )
         return self
 
-    def get_rest2_inputs(self) -> dict[str, object]:
-        return {
-            "angstrom_exponent": self.angstrom_exponent,
-            "pressure": self.psurf,
-            "water_vapour": self.h2o,
-            "ozone": self.o3,
-            "nitrogen_dioxide": self.no2,
-            "surface_albedo": self.albedo,
-            "optical_depth_550nm": self.od550,
-            "cod": self.cod,
-            "lat": self.latitude,
-            "lon": self.longitude,
-        }
-
 
 class LocationDataBuilder:
     def __init__(self, reader: "InputData", latitude: float, longitude: float):
@@ -123,8 +109,6 @@ class LocationDataBuilder:
         self.start_date: datetime | None = None
         self.end_date: datetime | None = None
         self.forecasting_day: int | None = None
-        self._apply_unit_conversions = True
-        self._calculate_derived_fields = True
 
     def time_range(
         self, start_date: datetime, end_date: datetime
@@ -137,14 +121,6 @@ class LocationDataBuilder:
         self.forecasting_day = day
         return self
 
-    def skip_unit_conversions(self) -> "LocationDataBuilder":
-        self._apply_unit_conversions = False
-        return self
-
-    def skip_derived_fields(self) -> "LocationDataBuilder":
-        self._calculate_derived_fields = False
-        return self
-
     def build(self) -> LocationInputData:
         return self.reader._build_location_data(
             self.latitude,
@@ -152,8 +128,6 @@ class LocationDataBuilder:
             self.start_date,
             self.end_date,
             self.forecasting_day,
-            self._apply_unit_conversions,
-            self._calculate_derived_fields,
         )
 
 
@@ -235,8 +209,6 @@ class InputData:
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         forecasting_day: int | None = None,
-        apply_unit_conversions: bool = True,
-        calculate_derived_fields: bool = True,
     ) -> LocationInputData:
         # Find nearest grid point
         grid_lat, grid_lon = self._find_nearest_point(latitude, longitude)
@@ -282,12 +254,8 @@ class InputData:
             forecasting_day=forecasting_day,
         )
 
-        # Apply post-processing steps
-        if apply_unit_conversions:
-            location_data.apply_unit_conversions()
-
-        if calculate_derived_fields:
-            location_data.calculate_derived_fields()
+        location_data.apply_unit_conversions()
+        location_data.calculate_derived_fields()
 
         # Upsample data to 10-minute intervals
         location_data = location_data.upsample_to_interval("10m")

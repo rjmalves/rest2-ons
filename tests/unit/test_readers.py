@@ -76,41 +76,6 @@ class TestLocationInputData:
         assert "valor" in location_data.angstrom_exponent.columns
         assert len(location_data.angstrom_exponent) == 1
 
-    def test_get_rest2_inputs(self) -> None:
-        """Test REST2 input dictionary generation."""
-        time_data = pl.DataFrame({"time": [datetime(2024, 1, 15, 12, 0)]})
-        angstrom_data = time_data.with_columns(pl.lit(1.3).alias("valor"))
-
-        location_data = LocationInputData(
-            latitude=-22.5,
-            longitude=-45.5,
-            cod=time_data.with_columns(pl.lit(5.0).alias("valor")),
-            albedo=time_data.with_columns(pl.lit(0.2).alias("valor")),
-            h2o=time_data.with_columns(pl.lit(1.0).alias("valor")),
-            no2=time_data.with_columns(pl.lit(0.001).alias("valor")),
-            o3=time_data.with_columns(pl.lit(0.3).alias("valor")),
-            od550=time_data.with_columns(pl.lit(0.2).alias("valor")),
-            od670=time_data.with_columns(pl.lit(0.15).alias("valor")),
-            psurf=time_data.with_columns(pl.lit(1013.25).alias("valor")),
-            temp2m=time_data.with_columns(pl.lit(25.0).alias("valor")),
-            angstrom_exponent=angstrom_data,
-        )
-
-        inputs = location_data.get_rest2_inputs()
-
-        assert "angstrom_exponent" in inputs
-        assert "pressure" in inputs
-        assert "water_vapour" in inputs
-        assert "ozone" in inputs
-        assert "nitrogen_dioxide" in inputs
-        assert "surface_albedo" in inputs
-        assert "optical_depth_550nm" in inputs
-        assert "cod" in inputs
-        assert "lat" in inputs
-        assert "lon" in inputs
-        assert inputs["lat"] == -22.5
-        assert inputs["lon"] == -45.5
-
 
 class TestInputData:
     """Test InputData reader."""
@@ -206,8 +171,6 @@ class TestLocationDataBuilder:
             reader.for_location(-22.5, -45.5)
             .time_range(datetime(2024, 1, 1), datetime(2024, 1, 31))
             .forecasting_day_filter(1)
-            .skip_unit_conversions()
-            .skip_derived_fields()
         )
 
         assert builder.latitude == -22.5
@@ -215,8 +178,6 @@ class TestLocationDataBuilder:
         assert builder.start_date == datetime(2024, 1, 1)
         assert builder.end_date == datetime(2024, 1, 31)
         assert builder.forecasting_day == 1
-        assert builder._apply_unit_conversions is False
-        assert builder._calculate_derived_fields is False
 
 
 def _write_input_files(tmp_path: Path, psurf_value: float) -> None:
