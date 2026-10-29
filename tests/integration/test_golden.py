@@ -1,4 +1,4 @@
-"""Golden regression test for the REST2 calibration (L-ADR-003).
+"""Golden regression test for the REST2 calibration.
 
 The measured series is the model evaluated at TRUTH plus seeded noise, so the
 bounded fit ends in the interior and recovers the truth. The expected values
