@@ -277,7 +277,6 @@ class REST2:
         optical_depth_550nm: np.ndarray,
     ) -> AirMassResults:
         # air mass for aerosols extinction
-        # complex_temp = np.array(zenith_angle * 180. / np.pi, dtype=np.complex)
         complex_temp = np.array(zenith_angle * 180.0 / np.pi, dtype=complex)
 
         ama = np.abs(
@@ -299,10 +298,6 @@ class REST2:
                 -1,
             )
         )
-        # air mass for nitrogen dioxide absorption
-        # amn = np.abs(np.power(np.cos(zenith_angle)
-        #   + 1.1212 * np.power(zenith_angle * 180. / np.pi, 1.6132)
-        #   / np.power(3.2629 - zenith_angle * 180. / np.pi, 1.9203), -1))
         # air mass for ozone absorption
         amo = np.abs(
             np.power(
@@ -393,7 +388,8 @@ class REST2:
         )
         To1 = (1 + f1 * amo + f2 * np.power(amo, 2)) / (1 + f3 * amo)
 
-        # transmittance for Nitrogen dioxide absorption
+        # transmittance for Nitrogen dioxide absorption; it takes the water
+        # vapour air mass amw, as no NO2-specific air mass is computed
         un = nitrogen_dioxide
         g1 = (0.17499 + 41.654 * un - 2146.4 * np.power(un, 2)) / (
             1 + 22295.0 * np.power(un, 2)
@@ -405,17 +401,11 @@ class REST2:
         Tn1_middle = (1 + g1 * amw + g2 * np.power(amw, 2)) / (1 + g3 * amw)
         Tn1_middle[Tn1_middle > 1] = 1
         Tn1 = Tn1_middle
-        # Tn1 = min(
-        #     1, ((1 + g1 * amw + g2 * np.power(amw, 2)) / (1 + g3 * amw))
-        # )
         Tn1166_middle = (1 + g1 * 1.66 + g2 * np.power(1.66, 2)) / (
             1 + g3 * 1.66
         )
         Tn1166_middle[Tn1166_middle > 1] = 1
         Tn1166 = Tn1166_middle
-        # Tn1166 = min(
-        #     1, ((1 + g1 * 1.66 + g2 * np.power(1.66, 2)) / (1 + g3 * 1.66))
-        # )  # atairmass = 1.66
         # transmittance for Water Vapor absorption
         h1 = (
             water_vapour
@@ -631,9 +621,8 @@ class REST2:
         self, cod: np.ndarray, mu0: float, g: float
     ) -> CloudTransmittanceResults:
         # Cloud Transmittance -> TC Band 1 = TC Band 2, assuming the cloud as a
-        # grey/white body
-        # g = 0.85  #  For liquid water clouds, scattering is mostly in the
-        # forward direction, with g≃0.85, whereas for ice clouds g≃0.7 -
+        # grey/white body. The asymmetry factor g is about 0.85 for liquid
+        # water clouds (mostly forward scattering) and 0.7 for ice clouds:
         # https://amt.copernicus.org/articles/16/4975/2023/#bib1.bibx53
         direct_transmittance = np.exp(
             -1 * cod / (0.5 + mu0)

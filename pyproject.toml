@@ -55,9 +55,9 @@ target-version = "py311"
 
 [tool.ruff.lint]
 # PGH bans blanket suppressions: every `# noqa` and `# type: ignore` names
-# its code.
+# its code. ERA bans commented-out code; git keeps old versions.
 select = [
-    "E", "F", "W", "I", "UP", "B", "SIM", "RUF", "DTZ", "T20", "PGH",
+    "E", "F", "W", "I", "UP", "B", "SIM", "RUF", "DTZ", "T20", "PGH", "ERA",
 ]
 ignore = ["RUF012"]
 
