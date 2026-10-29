@@ -1,6 +1,6 @@
 # rest2-ons
 
-[![Python](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Frjmalves%2Frest2-ons%2Fmain%2Fpyproject.toml)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)](https://www.python.org/downloads/)
 [![CI](https://github.com/rjmalves/rest2-ons/actions/workflows/ci.yml/badge.svg)](https://github.com/rjmalves/rest2-ons/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
