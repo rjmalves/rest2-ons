@@ -22,12 +22,6 @@ from app.train import PlantResult as PlantTrainResult
 from app.train import TrainManager
 from app.utils.data import PlantArtifact
 from app.writers import write_plant_inference_plots, write_plant_train_plots
-from tests.fixtures.generate_test_data import (
-    generate_atmospheric_data,
-    generate_cod_data,
-    generate_measured_data,
-    generate_usinas_metadata,
-)
 
 pytestmark = [pytest.mark.integration, pytest.mark.plotting]
 
@@ -51,18 +45,16 @@ class Fitted:
 
 
 @pytest.fixture(scope="module")
-def fitted(tmp_path_factory: pytest.TempPathFactory) -> Fitted:
-    input_dir = tmp_path_factory.mktemp("plot_input")
-    generate_atmospheric_data(input_dir)
-    generate_cod_data(input_dir)
-    generate_measured_data(input_dir)
-    generate_usinas_metadata(input_dir)
+def fitted(
+    generated_input_dir: Path, tmp_path_factory: pytest.TempPathFactory
+) -> Fitted:
+    out_dir = tmp_path_factory.mktemp("plot_output")
     window = TimeWindow(START, END)
     config = Config(
         mode="train",
-        input=str(input_dir),
-        output=str(input_dir / "output"),
-        artifact=str(input_dir / "artifacts"),
+        input=str(generated_input_dir),
+        output=str(out_dir / "output"),
+        artifact=str(out_dir / "artifacts"),
         time_windows=TimeWindows(
             training=window,
             validation=window,

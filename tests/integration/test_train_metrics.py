@@ -16,27 +16,11 @@ from app.internal.config import (
 from app.readers import InputData
 from app.services.radiation import REST2
 from app.train import TrainManager
-from tests.fixtures.generate_test_data import (
-    generate_atmospheric_data,
-    generate_cod_data,
-    generate_measured_data,
-    generate_usinas_metadata,
-)
 
 pytestmark = pytest.mark.integration
 
 START = datetime(2024, 1, 1)
 END = datetime(2024, 1, 1, 23)
-
-
-@pytest.fixture(scope="module")
-def generated_input_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    input_dir = tmp_path_factory.mktemp("generated_input")
-    generate_atmospheric_data(input_dir)
-    generate_cod_data(input_dir)
-    generate_measured_data(input_dir)
-    generate_usinas_metadata(input_dir)
-    return input_dir
 
 
 def make_config(input_dir: Path, out_dir: Path, target: str) -> Config:

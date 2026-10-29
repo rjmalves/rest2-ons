@@ -154,7 +154,6 @@ class TrainManager:
 
     def train(self) -> dict[str, PlantResult]:
         results = {}
-        plant_ids = self.config.plant_ids or []
-        for plant_id in plant_ids:
+        for plant_id in self.reader.plant_ids(self.config.plant_ids):
             results[plant_id] = self._train_for_plant(plant_id)
         return results

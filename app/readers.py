@@ -173,6 +173,16 @@ class InputData:
             return self._read("usinas.csv", {})
         return self._read("usinas.csv", {"id_usina": ids_usinas})
 
+    def plant_ids(self, selected: list[str] | None) -> list[str]:
+        """``selected`` as given, or every ``id_usina`` in usinas.csv if None.
+
+        A given list is not filtered against usinas.csv, so an unknown id
+        still fails where its coordinates are looked up.
+        """
+        if selected is not None:
+            return selected
+        return self.read_usinas()["id_usina"].to_list()
+
     def _find_nearest_point(
         self,
         target_lat: float,
@@ -363,10 +373,12 @@ class InputData:
         return df
 
 
-def read_plant_artifacts(config: Config) -> dict[str, PlantArtifact]:
+def read_plant_artifacts(
+    config: Config, reader: InputData
+) -> dict[str, PlantArtifact]:
     storage = StorageFactory.get_storage(config.artifact)
     artifacts = {}
-    for plant_id in config.plant_ids or []:
+    for plant_id in reader.plant_ids(config.plant_ids):
         artifact_path = storage.join_path(config.artifact, f"{plant_id}.json")
         data = storage.read_bytes(artifact_path).decode("utf-8")
         artifact_dict = pyjson5.decode(data)
