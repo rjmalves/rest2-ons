@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.12"
+      - name: Install locked dependencies
+        run: uv sync --locked --extra dev
+      - name: Lint
+        run: uv run --no-sync ruff check . --output-format=github
+      - name: Format
+        run: uv run --no-sync ruff format --check .
+      - name: Plan-structure leak gate
+        run: uv run --no-sync python scripts/ci/check_no_plan_leaks.py
+      - name: Rot-proof reference gate
+        run: uv run --no-sync python scripts/ci/check_comment_refs.py
+      - name: Shipped-doc path gate
+        run: uv run --no-sync python scripts/ci/check_doc_paths.py
+
+  test:
+    name: test (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install locked dependencies
+        run: uv sync --locked --extra dev
+      - name: Type-check
+        run: uv run --no-sync mypy app main.py tests scripts/ci
+      - name: Test with coverage floor
+        run: uv run --no-sync pytest --cov=app --cov-report=term-missing --cov-report=xml
+      - name: Install from a clean checkout with setup.sh
+        run: |
+          export HOME="$(mktemp -d)"
+          ./setup.sh --user --quiet
+          "$HOME/.local/bin/rest2-ons" --help
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457 # v3.1.6
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false

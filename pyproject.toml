@@ -81,3 +81,8 @@ strict = true
 # s3fs ships no type information and has no stubs package.
 module = ["s3fs", "s3fs.*"]
 ignore_missing_imports = true
+
+[tool.coverage.report]
+# A ratchet at the measured baseline: raise it when coverage rises, never
+# lower it to land a change.
+fail_under = 81
