@@ -1,9 +1,10 @@
+import plotly.graph_objects as go  # type: ignore[import-untyped]
 import pyjson5
 
 from app.inference import PlantResult as PlantInferenceResult
 from app.internal.config import Config
 from app.readers import InputData
-from app.storage import StorageFactory
+from app.storage import StorageBackend, StorageFactory
 from app.train import PlantResult as PlantTrainResult
 from app.utils.data import PlantArtifact, get_plant_coordinates
 from app.utils.plots import inference_plots, train_evaluation_plots
@@ -41,7 +42,7 @@ def write_plant_train_plots(
         output_dir = storage.join_path(config.artifact, "plots")
         storage.makedirs(output_dir)
         lat, lon = get_plant_coordinates(reader.read_usinas(), plant_id)
-        train_evaluation_plots(
+        figures = train_evaluation_plots(
             result,
             reader.read_measured_for_plant(
                 plant_id,
@@ -55,8 +56,8 @@ def write_plant_train_plots(
             .forecasting_day_filter(config.forecasting_day_ahead)
             .build()
             .cod,
-            storage.join_path(output_dir, plant_id),
         )
+        _write_figures(storage, output_dir, plant_id, figures)
 
 
 def write_inference_results(
@@ -80,7 +81,7 @@ def write_plant_inference_plots(
         output_dir = storage.join_path(config.output, "plots")
         storage.makedirs(output_dir)
         lat, lon = get_plant_coordinates(reader.read_usinas(), plant_id)
-        inference_plots(
+        figures = inference_plots(
             result,
             reader.for_location(lat, lon)
             .time_range(
@@ -90,5 +91,21 @@ def write_plant_inference_plots(
             .forecasting_day_filter(config.forecasting_day_ahead)
             .build()
             .cod,
-            storage.join_path(output_dir, plant_id),
         )
+        _write_figures(storage, output_dir, plant_id, figures)
+
+
+def _write_figures(
+    storage: StorageBackend,
+    output_dir: str,
+    plant_id: str,
+    figures: dict[str, go.Figure],
+) -> None:
+    """Write each figure as ``{plant_id}_{suffix}.html`` through ``storage``.
+
+    Through the backend, not ``Figure.write_html``: plotly treats an
+    ``s3://`` URI as a local path.
+    """
+    for suffix, figure in figures.items():
+        path = storage.join_path(output_dir, f"{plant_id}_{suffix}.html")
+        storage.write_bytes(figure.to_html().encode("utf-8"), path)

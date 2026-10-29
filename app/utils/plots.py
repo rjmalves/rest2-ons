@@ -102,7 +102,7 @@ def _join_predictions_with_measured_and_cod(
 
 
 def rest2_train_steps_scatter_plot(
-    df: pd.DataFrame, target_column: str, filepath: str
+    df: pd.DataFrame, target_column: str
 ) -> go.Figure:
     fig = px.scatter(
         df,
@@ -135,12 +135,11 @@ def rest2_train_steps_scatter_plot(
     )
     fig.update_xaxes(range=[0, df["measured"].max() * 1.05])
     fig.update_yaxes(range=[0, df["measured"].max() * 1.05])
-    fig.write_html(filepath)
     return fig
 
 
 def rest2_train_irradiances_scatter_plot(
-    df: pd.DataFrame, target_column: str, filepath: str
+    df: pd.DataFrame, target_column: str
 ) -> go.Figure:
     fig = px.scatter(
         df,
@@ -173,14 +172,12 @@ def rest2_train_irradiances_scatter_plot(
     )
     fig.update_xaxes(range=[0, df["measured"].max() * 1.05])
     fig.update_yaxes(range=[0, df["measured"].max() * 1.05])
-    fig.write_html(filepath)
     return fig
 
 
 def rest2_train_steps_timeseries_plot(
     df: pd.DataFrame,
     target_column: str,
-    filepath: str,
 ) -> go.Figure:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
@@ -262,14 +259,12 @@ def rest2_train_steps_timeseries_plot(
         tickformat="%Y-%m-%d %H:%M",
         tickangle=-45,
     )
-    fig.write_html(filepath)
     return fig
 
 
 def rest2_train_irradiances_timeseries_plot(
     df: pd.DataFrame,
     target_column: str,
-    filepath: str,
 ) -> go.Figure:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
@@ -363,14 +358,12 @@ def rest2_train_irradiances_timeseries_plot(
         tickformat="%Y-%m-%d %H:%M",
         tickangle=-45,
     )
-    fig.write_html(filepath)
     return fig
 
 
 def rest2_inference_irradiances_timeseries_plot(
     df: pd.DataFrame,
     target_column: str,
-    filepath: str,
 ) -> go.Figure:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
@@ -454,7 +447,6 @@ def rest2_inference_irradiances_timeseries_plot(
         tickformat="%Y-%m-%d %H:%M",
         tickangle=-45,
     )
-    fig.write_html(filepath)
     return fig
 
 
@@ -462,41 +454,41 @@ def train_evaluation_plots(
     result: PlantTrainResult,
     measured: pl.DataFrame,
     cod: pl.DataFrame,
-    filepath_prefix: str,
-) -> None:
+) -> dict[str, go.Figure]:
+    """Training-evaluation figures, keyed by their file-name suffix."""
     predictions_df = _plant_train_result_with_irradiances_to_df(result)
     target_column = result.train.radiation_type
     df = _join_predictions_with_measured_and_cod(
         predictions_df, measured.to_pandas(), cod.to_pandas()
     )
-    _ = rest2_train_steps_scatter_plot(
-        df, target_column, filepath_prefix + "_train_steps_scatter.html"
-    )
-    _ = rest2_train_irradiances_scatter_plot(
-        df, target_column, filepath_prefix + "_train_irradiances_scatter.html"
-    )
-    _ = rest2_train_steps_timeseries_plot(
-        df, target_column, filepath_prefix + "_train_steps_timeseries.html"
-    )
-    _ = rest2_train_irradiances_timeseries_plot(
-        df,
-        target_column,
-        filepath_prefix + "_train_irradiances_timeseries.html",
-    )
+    return {
+        "train_steps_scatter": rest2_train_steps_scatter_plot(
+            df, target_column
+        ),
+        "train_irradiances_scatter": rest2_train_irradiances_scatter_plot(
+            df, target_column
+        ),
+        "train_steps_timeseries": rest2_train_steps_timeseries_plot(
+            df, target_column
+        ),
+        "train_irradiances_timeseries": (
+            rest2_train_irradiances_timeseries_plot(df, target_column)
+        ),
+    }
 
 
 def inference_plots(
     result: PlantInferenceResult,
     cod: pl.DataFrame,
-    filepath_prefix: str,
-) -> None:
+) -> dict[str, go.Figure]:
+    """Inference figures, keyed by their file-name suffix."""
     predictions_df = _plant_inference_result_with_irradiances_to_df(result)
     target_column = result.radiation_type
     df = _join_predictions_with_measured_and_cod(
         predictions_df, None, cod.to_pandas()
     )
-    _ = rest2_inference_irradiances_timeseries_plot(
-        df,
-        target_column,
-        filepath_prefix + "_inference_irradiances_timeseries.html",
-    )
+    return {
+        "inference_irradiances_timeseries": (
+            rest2_inference_irradiances_timeseries_plot(df, target_column)
+        ),
+    }
