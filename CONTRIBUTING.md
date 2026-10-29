@@ -142,6 +142,12 @@ código possa segui-los, e são a referência também para pessoas. Em resumo:
   propósito.
 - **Mensagens do CLI passam pelo `logging`**, nunca por `print` (regra `T20`
   do ruff).
+- **Dependências de execução batem com os imports.** Todo pacote importado
+  por `app/` ou `main.py` está em `[project].dependencies`, e todo pacote
+  declarado ali é importado pela aplicação ou listado em `LAZILY_IMPORTED`
+  (`tests/unit/test_declared_dependencies.py`), quando uma biblioteca o
+  importa por conta própria. Ferramentas de desenvolvimento vão no extra
+  `dev`.
 
 ### Boas Práticas Python
 
@@ -253,13 +259,13 @@ pytest -m s3                     # Apenas testes S3
 
 Testes são categorizados usando markers do pytest:
 
-| Marker        | Descrição                                   |
-| ------------- | ------------------------------------------- |
+| Marker                     | Descrição                                     |
+| -------------------------- | --------------------------------------------- |
 | `@pytest.mark.unit`        | Testes unitários para componentes individuais |
-| `@pytest.mark.integration` | Testes de integração do pipeline completo   |
-| `@pytest.mark.slow`        | Testes que demoram para executar            |
-| `@pytest.mark.s3`          | Testes que requerem simulação S3/moto       |
-| `@pytest.mark.plotting`    | Testes que geram gráficos                   |
+| `@pytest.mark.integration` | Testes de integração do pipeline completo     |
+| `@pytest.mark.slow`        | Testes que demoram para executar              |
+| `@pytest.mark.s3`          | Testes que requerem simulação S3/moto         |
+| `@pytest.mark.plotting`    | Testes que geram gráficos                     |
 
 ### Escrevendo Testes
 
