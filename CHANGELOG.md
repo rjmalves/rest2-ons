@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inference stops with an error when a plant's artifact was trained on a radiation type other than `target_radiation_type`; it applied the parameters to the other type without a warning
 - `setup.sh` shows pip's output when the install fails, instead of exiting without a message, and removes the partial installation; the minimum Python version is enforced by pip from `pyproject.toml`
 - `setup.sh` error messages print their line breaks instead of a literal `\n`
+- The package reports version 0.1.0, the latest release in this changelog; it reported 1.0.0
 
 ---
 

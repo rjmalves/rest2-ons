@@ -9,4 +9,4 @@ Density (COD) forecasts to generate cloudy-sky irradiance predictions and
 trains the radiation model parameters with measured in-site data.
 """
 
-__version__ = "1.0.0"
+__version__ = "0.1.0"
