@@ -1,15 +1,17 @@
 from datetime import datetime
+from pathlib import Path
 
 import polars as pl
 import pytest
 
+from app.input_contract import InputUnitMismatchError
 from app.readers import InputData, LocationDataBuilder, LocationInputData
 
 
 class TestLocationInputData:
     """Test LocationInputData dataclass."""
 
-    def test_apply_unit_conversions(self):
+    def test_apply_unit_conversions_leaves_hpa_pressure_unchanged(self):
         """Test unit conversions are applied correctly."""
         # Create minimal input data
         time_data = pl.DataFrame({"time": [datetime(2024, 1, 15, 12, 0)]})
@@ -31,17 +33,17 @@ class TestLocationInputData:
             od550=time_data.with_columns(pl.lit(0.1).alias("valor")),
             od670=time_data.with_columns(pl.lit(0.08).alias("valor")),
             psurf=time_data.with_columns(
-                pl.lit(101325.0).alias("valor")
-            ),  # Pa -> hPa
-            temp2m=time_data.with_columns(pl.lit(298.0).alias("valor")),
+                pl.lit(1013.25).alias("valor")
+            ),  # hPa, declared unit
+            temp2m=time_data.with_columns(pl.lit(25.0).alias("valor")),
         )
 
         location_data.apply_unit_conversions()
 
         # Check conversions
-        # psurf: 101325 Pa -> 1013.25 hPa
-        assert abs(location_data.psurf["valor"][0] - 1013.25) < 0.01, (
-            "Pressure conversion failed"
+        # psurf: already hPa, left unchanged
+        assert abs(location_data.psurf["valor"][0] - 1013.25) < 1e-12, (
+            "Pressure must not be re-converted"
         )
 
         # h2o: 10 kg/m2 * 0.1 = 1.0 atm-cm
@@ -64,7 +66,7 @@ class TestLocationInputData:
             od550=time_data.with_columns(pl.lit(0.2).alias("valor")),
             od670=time_data.with_columns(pl.lit(0.15).alias("valor")),
             psurf=time_data.with_columns(pl.lit(1013.25).alias("valor")),
-            temp2m=time_data.with_columns(pl.lit(298.0).alias("valor")),
+            temp2m=time_data.with_columns(pl.lit(25.0).alias("valor")),
         )
 
         location_data.calculate_derived_fields()
@@ -90,7 +92,7 @@ class TestLocationInputData:
             od550=time_data.with_columns(pl.lit(0.2).alias("valor")),
             od670=time_data.with_columns(pl.lit(0.15).alias("valor")),
             psurf=time_data.with_columns(pl.lit(1013.25).alias("valor")),
-            temp2m=time_data.with_columns(pl.lit(298.0).alias("valor")),
+            temp2m=time_data.with_columns(pl.lit(25.0).alias("valor")),
             angstrom_exponent=angstrom_data,
         )
 
@@ -215,6 +217,57 @@ class TestLocationDataBuilder:
         assert builder.forecasting_day == 1
         assert builder._apply_unit_conversions is False
         assert builder._calculate_derived_fields is False
+
+
+def _write_input_files(tmp_path: Path, psurf_value: float) -> None:
+    hours = [datetime(2024, 1, 15, hour) for hour in range(24)]
+    values = {
+        "cod": 5.0,
+        "albedo": 0.2,
+        "h2o": 25.0,
+        "no2": 1e-4,
+        "o3": 6e-3,
+        "od550": 0.12,
+        "od670": 0.09,
+        "psurf": psurf_value,
+        "temp": 25.0,
+    }
+    for name, value in values.items():
+        pl.DataFrame(
+            {
+                "latitude": [-22.5] * 24,
+                "longitude": [-45.5] * 24,
+                "data_hora_rodada": [datetime(2024, 1, 15, 0, 0)] * 24,
+                "data_hora_previsao": hours,
+                "valor": [value] * 24,
+            }
+        ).write_parquet(tmp_path / f"{name}.parquet")
+
+
+@pytest.mark.unit
+class TestReadBoundaryUnits:
+    """The declared input units are enforced where the files are read."""
+
+    def test_pa_pressure_fails_at_read_boundary(self, tmp_path):
+        _write_input_files(tmp_path, psurf_value=101325.0)
+
+        builder = InputData(str(tmp_path)).for_location(-22.5, -45.5)
+
+        with pytest.raises(InputUnitMismatchError, match="psurf.*hPa"):
+            builder.forecasting_day_filter(0).build()
+
+    def test_hpa_pressure_reads_unchanged(self, tmp_path):
+        _write_input_files(tmp_path, psurf_value=1013.25)
+
+        location_data = (
+            InputData(str(tmp_path))
+            .for_location(-22.5, -45.5)
+            .forecasting_day_filter(0)
+            .build()
+        )
+
+        assert location_data.psurf["valor"].unique().to_list() == [1013.25]
+        assert location_data.psurf.height == 139
 
 
 @pytest.mark.unit

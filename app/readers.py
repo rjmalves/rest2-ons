@@ -6,6 +6,7 @@ import numpy as np
 import polars as pl
 import pyjson5
 
+from app.input_contract import InputContractError, validate_input_units
 from app.internal.config import Config
 from app.storage import StorageFactory
 from app.utils.data import PlantArtifact
@@ -45,9 +46,6 @@ class LocationInputData:
         self.no2 = self.no2.with_columns(
             pl.col("valor") * 48.78
         )  # kg/m2 -> atm-cm: ro_no2 = 2.05kg/m3 => no2[kg/m2]/ro_no2 * 100 (m->cm) = 48.78
-        self.psurf = self.psurf.with_columns(
-            pl.col("valor") * 0.01
-        )  # Pa -> hPa
 
         return self
 
@@ -254,6 +252,7 @@ class InputData:
         input_data = {}
         for field_name, filename in data_mapping.items():
             data = self._load_and_filter_field(
+                field_name,
                 filename,
                 grid_lat if field_name != "cod" else cod_lat,
                 grid_lon if field_name != "cod" else cod_lon,
@@ -293,6 +292,7 @@ class InputData:
 
     def _load_and_filter_field(
         self,
+        input_name: str,
         filename: str,
         latitude: float,
         longitude: float,
@@ -305,6 +305,7 @@ class InputData:
             if not self.storage.exists(file_path):
                 return None
             df = self.storage.read_parquet(file_path).collect()
+            validate_input_units(input_name, df["valor"])
             # Filter by coordinates
             df = df.filter(
                 (pl.col("latitude") == latitude)
@@ -329,6 +330,8 @@ class InputData:
 
             return df
 
+        except InputContractError:
+            raise
         except Exception as e:
             print(f"Warning: Could not load {self.path}/{filename}: {e}")
             return None
