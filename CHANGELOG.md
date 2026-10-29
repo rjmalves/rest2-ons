@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plots are written through the storage backend, so `s3://` artifact and output paths work
 - `plant_ids: null` processes every plant in `usinas.csv`, as documented; it processed none and still reported success
 - `rest2-ons --help` names the default config file, `config.jsonc`, instead of `config.json`
+- When several runs forecast the same valid time within `forecasting_day_ahead`, the latest run is used; which run was used depended on the row order of the input file
 
 ---
 

@@ -347,6 +347,11 @@ class InputData:
     def filter_forecasting_day(
         cls, df: pl.DataFrame, forecasting_day: int
     ) -> pl.DataFrame:
+        """Rows ``forecasting_day`` whole days of lead time from their run.
+
+        Several runs can forecast one valid time within that day; the latest
+        run is kept, never the first row in file order.
+        """
         df = df.with_columns(
             [
                 pl.col("data_hora_previsao").cast(pl.Datetime),
@@ -366,11 +371,13 @@ class InputData:
             [dia_expr.floor().cast(pl.Int32).alias("dia_previsao")]
         )
 
-        df = df.filter(pl.col("dia_previsao") == forecasting_day)
-        df = df.drop(["dia_previsao", "data_hora_rodada"])
-        df = df.rename({"data_hora_previsao": "time"})
-        df = df.sort("time").unique(subset=["time"])
-        return df
+        return (
+            df.filter(pl.col("dia_previsao") == forecasting_day)
+            .rename({"data_hora_previsao": "time"})
+            .sort("time", "data_hora_rodada")
+            .unique(subset="time", keep="last", maintain_order=True)
+            .drop("dia_previsao", "data_hora_rodada")
+        )
 
 
 def read_plant_artifacts(
