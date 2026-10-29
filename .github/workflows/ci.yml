@@ -60,7 +60,8 @@ jobs:
         run: uv run --no-sync pytest --cov=app --cov-report=term-missing --cov-report=xml
       - name: Install from a clean checkout with setup.sh
         run: |
-          export HOME="$(mktemp -d)"
+          HOME="$(mktemp -d)"
+          export HOME
           ./setup.sh --user --quiet
           "$HOME/.local/bin/rest2-ons" --help
       - name: Upload coverage to Codecov
