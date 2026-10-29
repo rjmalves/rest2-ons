@@ -1,4 +1,4 @@
-import plotly.graph_objects as go  # type: ignore[import-untyped]
+import plotly.graph_objects as go
 import pyjson5
 
 from app.inference import PlantResult as PlantInferenceResult

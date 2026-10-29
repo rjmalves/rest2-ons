@@ -1,13 +1,9 @@
 import pandas as pd
-
-# plotly ships no inline types or official stubs.
-import plotly.express as px  # type: ignore[import-untyped]
-import plotly.graph_objects as go  # type: ignore[import-untyped]
-import plotly.io as pio  # type: ignore[import-untyped]
+import plotly.express as px
+import plotly.graph_objects as go
+import plotly.io as pio
 import polars as pl
-
-# plotly ships no inline types or official stubs.
-from plotly.subplots import make_subplots  # type: ignore[import-untyped]
+from plotly.subplots import make_subplots
 
 from app.inference import PlantResult as PlantInferenceResult
 from app.internal.constants import (

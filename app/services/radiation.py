@@ -3,9 +3,7 @@ from collections.abc import Callable
 
 import numpy as np
 import polars as pl
-
-# scipy ships no inline types; scipy-stubs is not a dependency.
-from scipy.optimize import minimize  # type: ignore[import-untyped]
+from scipy.optimize import minimize
 
 from app.readers import LocationInputData
 from app.utils.metrics import mae, me, rmse
@@ -961,7 +959,10 @@ class REST2:
             method="L-BFGS-B",
             bounds=[self.PARAMETER_BOUNDS[key] for key in parameter_keys],
         )
-        fitted = dict(zip(parameter_keys, res.x, strict=True))
+        fitted = {
+            key: float(value)
+            for key, value in zip(parameter_keys, res.x, strict=True)
+        }
         for key, value in fitted.items():
             lower, upper = self.PARAMETER_BOUNDS[key]
             for side, bound in (("lower", lower), ("upper", upper)):

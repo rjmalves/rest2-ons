@@ -7,9 +7,7 @@ from collections.abc import Callable
 import numpy as np
 import polars as pl
 import pytest
-
-# scipy ships no inline types; scipy-stubs is not a dependency.
-from scipy.optimize import minimize  # type: ignore[import-untyped]
+from scipy.optimize import minimize
 
 from app.readers import LocationInputData
 from app.services.radiation import REST2, _align_on_time
