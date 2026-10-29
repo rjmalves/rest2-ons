@@ -34,7 +34,6 @@ ROOT_FILES = {
     "config.example.jsonc",
     "CONTRIBUTING.md",
     "Dockerfile",
-    "install.sh",
     "LICENSE",
     "main.py",
     "Makefile",

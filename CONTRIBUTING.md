@@ -138,8 +138,8 @@ código possa segui-los, e são a referência também para pessoas. Em resumo:
 - **Docs nunca fixam uma contagem ou versão à mão.** Declare a regra, ou fixe
   o literal com um teste.
 - **Timestamps são naive e significam UTC.** A regra `DTZ` do ruff vale em
-  `app/` e `main.py`; os testes e os scripts de preparação de dados ficam de
-  fora porque constroem datas naive de propósito.
+  `app/` e `main.py`; os testes ficam de fora porque constroem datas naive de
+  propósito.
 - **Mensagens do CLI passam pelo `logging`**, nunca por `print` (regra `T20`
   do ruff).
 

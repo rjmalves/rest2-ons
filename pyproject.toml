@@ -62,13 +62,11 @@ select = [
 ignore = ["RUF012"]
 
 [tool.ruff.lint.per-file-ignores]
-# Timestamps are naive and mean UTC throughout rest2's data contract, so
-# test inputs and the data-preparation scripts build naive datetimes on
-# purpose. app/ and main.py keep the rule.
+# Timestamps are naive and mean UTC throughout rest2's data contract, so test
+# inputs build naive datetimes on purpose. app/ and main.py keep the rule.
 "tests/**" = ["DTZ"]
-# The data-preparation scripts and the test-data generator report on stdout
-# by design.
-"scripts/**" = ["DTZ", "T201"]
+# The scripts/ci gates and the test-data generator report on stdout by design.
+"scripts/**" = ["T201"]
 "tests/fixtures/generate_test_data.py" = ["T201"]
 
 [tool.ruff.lint.isort]
