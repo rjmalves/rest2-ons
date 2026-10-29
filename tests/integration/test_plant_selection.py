@@ -32,7 +32,7 @@ def make_config(
         time_windows=TimeWindows(
             training=WINDOW, validation=WINDOW, test=WINDOW, inference=WINDOW
         ),
-        postprocessing=PostprocessingConfig(errors=False, plots=False),
+        postprocessing=PostprocessingConfig(plots=False),
         plant_ids=plant_ids,
         forecasting_day_ahead=0,
         target_radiation_type="ghi",

@@ -36,7 +36,7 @@ def make_config(input_dir: Path, out_dir: Path, target: str) -> Config:
             test=window,
             inference=window,
         ),
-        postprocessing=PostprocessingConfig(errors=False, plots=False),
+        postprocessing=PostprocessingConfig(plots=False),
         plant_ids=["TEST001"],
         forecasting_day_ahead=0,
         target_radiation_type=target,

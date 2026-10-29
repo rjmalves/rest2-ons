@@ -38,15 +38,11 @@ class TimeWindows:
 
 @dataclass
 class PostprocessingConfig:
-    errors: bool
     plots: bool
 
     @classmethod
     def parse(cls, config: dict[str, Any]) -> "PostprocessingConfig":
-        return cls(
-            errors=config.get("errors", False),
-            plots=config.get("plots", False),
-        )
+        return cls(plots=config.get("plots", False))
 
 
 @dataclass

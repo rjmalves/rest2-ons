@@ -178,7 +178,6 @@ rest2-ons --help
 
   // Opções de pós-processamento
   "postprocessing": {
-    "errors": true,
     "plots": true
   }
 }

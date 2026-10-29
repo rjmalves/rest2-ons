@@ -78,7 +78,7 @@ def sample_config(
         output=str(temp_output_dir),
         artifact=str(temp_output_dir / "artifacts"),
         time_windows=sample_time_windows,
-        postprocessing=PostprocessingConfig(errors=False, plots=False),
+        postprocessing=PostprocessingConfig(plots=False),
         plant_ids=["TEST001"],
         forecasting_day_ahead=0,
         target_radiation_type="ghi",

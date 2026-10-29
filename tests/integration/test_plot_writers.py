@@ -61,7 +61,7 @@ def fitted(
             test=window,
             inference=window,
         ),
-        postprocessing=PostprocessingConfig(errors=False, plots=True),
+        postprocessing=PostprocessingConfig(plots=True),
         plant_ids=[PLANT],
         forecasting_day_ahead=0,
         target_radiation_type="ghi",

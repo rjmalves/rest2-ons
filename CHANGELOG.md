@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `install.sh`, the clone-and-run installer; install with `setup.sh` or `make install`
 - The hand-run data-preparation scripts under `scripts/` (CAMS and GOES nearest-point extraction, measured-irradiance download)
 - The `requests` and `python-dotenv` runtime dependencies, which only those scripts used
+- The `postprocessing.errors` config key, which had no effect; configs that still set it load and ignore it
 
 ### Fixed
 
