@@ -222,3 +222,7 @@ __marimo__/
 
 # Data
 data/*plans/
+
+# Agent tooling: only the path-scoped rules are shared
+.claude/*
+!.claude/rules/
