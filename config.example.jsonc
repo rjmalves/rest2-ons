@@ -8,11 +8,11 @@
     // The absolute or relative path to the model artifacts
     // This path will be used to save models during training and load models during inference
     "artifact": "data/artifacts",
-    // The IDs of the plants to be processed (None = all plants)
+    // The IDs of the plants to be processed (null = every plant in usinas.csv)
     "plant_ids": [
         "BAFB11"
     ],
-    // The forecasting day ahead
+    // Forecast lead time in whole days from the run: 0 = under 24 h, 1 = 24 to 48 h
     "forecasting_day_ahead": 0,
     // The target radiation type: ghi, dni, dhi or ghi_tracker
     "target_radiation_type": "dni",

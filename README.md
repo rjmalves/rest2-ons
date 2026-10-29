@@ -1,254 +1,215 @@
 # rest2-ons
 
-[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Frjmalves%2Frest2-ons%2Fmain%2Fpyproject.toml)](https://www.python.org/downloads/)
 [![CI](https://github.com/rjmalves/rest2-ons/actions/workflows/ci.yml/badge.svg)](https://github.com/rjmalves/rest2-ons/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Generalização ML do Modelo de Radiação Solar REST2** — Aplicação Python para previsão de irradiância solar utilizando parâmetros ajustáveis otimizados com previsões ECMWF CAMS, previsões de COD e dados medidos in-loco.
+Previsão de irradiância solar por usina com o modelo
+[REST2](https://github.com/NREL/rest2), adaptado para céu com nuvens.
 
-Desenvolvido pelo [Operador Nacional do Sistema Elétrico (ONS)](https://www.ons.org.br/) para uso em planejamento energético e previsão de geração solar fotovoltaica.
+O `rest2-ons` é uma ferramenta de linha de comando com dois modos:
 
----
+- **Treino**: para cada usina, ajusta os dois parâmetros da atenuação por
+  nuvens (`mu0` e `g`) que minimizam o RMSE entre a irradiância calculada e a
+  medida.
+- **Inferência**: com os parâmetros ajustados, prevê a irradiância (GHI, DNI,
+  DHI ou GHI em seguidor) a partir de previsões atmosféricas do ECMWF CAMS e
+  de profundidade óptica de nuvens (COD).
 
-## 📋 Visão Geral
+Entradas e saídas podem estar em disco local ou no S3. Desenvolvido pelo
+[Operador Nacional do Sistema Elétrico (ONS)](https://www.ons.org.br/).
 
-Esta aplicação implementa uma generalização por aprendizado de máquina do [modelo de radiação REST2 (Reference Evaluation of Solar Transmittance, 2-band)](https://github.com/NREL/rest2) desenvolvido pelo NREL, considerando condições de céu claro e com nebulosidade. Introduz parâmetros ajustáveis otimizados usando dados medidos in-loco, tornando-o adaptável para locais e condições específicas.
+## Instalação
 
-1. **Treina** modelos de regressão usando histórico de irradiância medida e previsões atmosféricas
-2. **Otimiza** os parâmetros associados a adaptação do modelo REST2 para considerar a nebulosidade (`mu0`, `g`) a fim de minimizar RMSE contra dados reais
-3. **Gera** previsões de irradiância solar em condições de céu claro e com nebulosidade (GHI, DNI, DHI) para operação
-4. **Exporta** previsões, métricas de performance e gráficos interativos
+Todas as formas abaixo instalam o comando `rest2-ons`.
 
-### Casos de Uso
+### uv (recomendado)
 
-- Previsão de irradiância solar para o dia seguinte e mesmo dia
-- Calibração de parâmetros para adaptação do modelo REST2 por usina
-- Validação de modelo e benchmarking contra baselines
-- Preparação de dados de treinamento para modelos de geração de potência
-
----
-
-## 🏗️ Arquitetura
-
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                              DADOS DE ENTRADA                              │
-├─────────────────┬─────────────────┬──────────────────┬─────────────────────┤
-│ Previsões CAMS  │ Previsões COD   │ Dados Medidos    │ Metadados Usinas    │
-│ (params atm.)   │ (prof. nuvens)  │ (irradiância)    │ (usinas.csv)        │
-└────────┬────────┴────────┬────────┴────────┬─────────┴──────────┬──────────┘
-         │                 │                 │                    │
-         ▼                 ▼                 ▼                    ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                         MODO: TRAIN (train.py)                             │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐  │
-│  │ Carga de Dados & │  │ Cálculo de       │  │ Otimização de Parâmetros │  │
-│  │ Pré-processamento│→ │ Geometria Solar  │→ │ (L-BFGS-B com limites)   │  │
-│  └──────────────────┘  └──────────────────┘  └───────────┬──────────────┘  │
-│                                                          │                 │
-│                                                          ▼                 │
-│                                              ┌──────────────────────────┐  │
-│                                              │ Artefato: {usina}.json   │  │
-│                                              │ (mu0, g, métricas)       │  │
-│                                              └──────────────────────────┘  │
-└────────────────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────────────────────┐
-│                        MODO: INFERENCE (inference.py)                      │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐  │
-│  │ Carregar         │  │ Aplicar Modelo   │  │ Gerar Previsões          │  │
-│  │ Parâmetros       │→ │ REST2 adaptado   │→ │ & Gráficos               │  │
-│  └──────────────────┘  └──────────────────┘  └───────────┬──────────────┘  │
-│                                                          │                 │
-│                                                          ▼                 │
-│                                              ┌──────────────────────────┐  │
-│                                              │ Saída: {usina}.parquet   │  │
-│                                              │ (time, valor)            │  │
-│                                              └──────────────────────────┘  │
-└────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Componentes Principais
-
-| Módulo             | Descrição                                                |
-| ------------------ | -------------------------------------------------------- |
-| `app/train.py`     | Pipeline de treinamento com otimização L-BFGS-B com limites |
-| `app/inference.py` | Pipeline de previsão usando parâmetros treinados         |
-| `app/readers.py`   | Leitura de dados de arquivos Parquet/CSV                 |
-| `app/writers.py`   | Geração de saídas (Parquet, JSON, gráficos HTML)         |
-| `app/storage/`     | Abstração de storage (local/S3)                          |
-| `app/services/`    | Implementação do modelo REST2 adaptado e geometria solar |
-| `app/utils/`       | Funções utilitárias (métricas, plots, limites)           |
-
----
-
-## 🚀 Quick Start
-
-### Pré-requisitos
-
-- Python >= 3.11
-- Linux (testado em Ubuntu/Debian)
-
-### Instalação
+Com o [uv](https://docs.astral.sh/uv/getting-started/installation/) instalado:
 
 ```bash
-# Clone o repositório
-git clone https://github.com/rjmalves/rest2-ons.git
-cd rest2-ons
-
-# Instale com uv (recomendado)
-uv sync
-
-# Ou com pip tradicional
-python -m venv venv
-source venv/bin/activate
-pip install -e .
-```
-
-### Execução Rápida
-
-```bash
-# 1. Prepare o arquivo de configuração
-cp config.example.jsonc config.jsonc
-# Edite config.jsonc com seus parâmetros
-
-# 2. Prepare dados de entrada em data/input/
-
-# 3. Treine o modelo
-rest2-ons --config config.jsonc  # com mode: "train"
-
-# 4. Altere o mode para "inference" e execute previsões
-rest2-ons --config config.jsonc  # com mode: "inference"
-```
-
-### Usando Docker
-
-```bash
-# Build da imagem
-docker build -t rest2-ons .
-
-# Execução com volumes montados
-docker run -v $(pwd)/data:/app/data -v $(pwd)/config.jsonc:/app/config.jsonc \
-  rest2-ons --config /app/config.jsonc
-```
-
----
-
-## 📖 Uso Detalhado
-
-### Linha de Comando
-
-```bash
-rest2-ons --config <ARQUIVO_CONFIG>
+uv tool install git+https://github.com/rjmalves/rest2-ons
 rest2-ons --help
 ```
 
-| Argumento  | Descrição                                  | Default     |
-| ---------- | ------------------------------------------ | ----------- |
-| `--config` | Caminho para arquivo de configuração JSONC | Obrigatório |
-
-### Arquivo de Configuração (`config.jsonc`)
-
-```jsonc
-{
-  // Modo de execução: "train" ou "inference"
-  "mode": "train",
-
-  // Caminhos de entrada/saída (local ou s3://)
-  "input": "data/input",
-  "output": "data/output",
-  "artifact": "data/artifacts",
-
-  // IDs das usinas a processar (null = todas em usinas.csv)
-  "plant_ids": ["BAFJS7"],
-
-  // Horizonte de previsão em dias (0 = mesmo dia)
-  "forecasting_day_ahead": 0,
-
-  // Tipo de radiação alvo: "ghi", "dni", "dhi", "ghi_tracker"
-  "target_radiation_type": "dni",
-
-  // Janelas temporais (formato ISO 8601: início/fim)
-  "time_windows": {
-    "training": "2024-01-01T00:00:00/2024-03-01T00:00:00",
-    "validation": "2024-03-01T00:00:00/2024-04-01T00:00:00",
-    "test": "2024-04-01T00:00:00/2024-05-01T00:00:00",
-    "inference": "2024-05-01T00:00:00/2024-06-01T00:00:00"
-  },
-
-  // Opções de pós-processamento
-  "postprocessing": {
-    "plots": true
-  }
-}
-```
-
-### Variáveis de Ambiente (S3)
+O uv instala o programa num ambiente isolado e baixa uma versão compatível do
+Python se a do sistema não servir. Se o comando `rest2-ons` não for
+encontrado, `uv tool update-shell` adiciona o diretório dos executáveis ao
+`PATH`.
 
 ```bash
-# Para uso com S3
-export AWS_ACCESS_KEY_ID="sua-access-key"
-export AWS_SECRET_ACCESS_KEY="sua-secret-key"
-export AWS_DEFAULT_REGION="us-east-1"
-
-rest2-ons --config config.jsonc
+uv tool upgrade rest2-ons     # atualiza para o último commit do main
+uv tool uninstall rest2-ons   # remove
 ```
 
----
+Para executar sem instalar:
 
-## 📁 Dados de Entrada
-
-O diretório de entrada deve conter os seguintes arquivos:
-
-| Arquivo                       | Formato | Descrição                                 |
-| ----------------------------- | ------- | ----------------------------------------- |
-| `usinas.csv`                  | CSV     | Metadados das usinas (id, lat, lon)       |
-| `albedo.parquet`              | Parquet | Previsão de albedo de superfície (CAMS)   |
-| `cod.parquet`                 | Parquet | Previsão de profundidade óptica de nuvens |
-| `h2o.parquet`                 | Parquet | Previsão de vapor d'água (CAMS)           |
-| `no2.parquet`                 | Parquet | Previsão de dióxido de nitrogênio (CAMS)  |
-| `o3.parquet`                  | Parquet | Previsão de ozônio (CAMS)                 |
-| `od550.parquet`               | Parquet | Profundidade óptica de aerossóis 550nm    |
-| `od670.parquet`               | Parquet | Profundidade óptica de aerossóis 670nm    |
-| `psurf.parquet`               | Parquet | Previsão de pressão de superfície (CAMS)  |
-| `temp.parquet`                | Parquet | Previsão de temperatura 2m (CAMS)         |
-| `measured_irradiance.parquet` | Parquet | Medições de irradiância in-loco           |
-
-### Schemas de Dados
-
-#### `usinas.csv`
-
-```csv
-id_usina,latitude,longitude
-BAFJS7,-23.5,-46.5
+```bash
+uvx --from git+https://github.com/rjmalves/rest2-ons rest2-ons --config config.jsonc
 ```
 
-#### Dados de previsão (Parquet)
+### pipx
 
-```
-latitude,longitude,data_hora_rodada,data_hora_previsao,valor
--23.5,-46.5,2024-01-01T00:00:00,2024-01-01T12:00:00,0.85
-```
+Com o [pipx](https://pipx.pypa.io/stable/how-to/install-pipx.html) instalado e
+um Python na versão exigida (veja o selo no topo da página):
 
-#### Dados medidos (Parquet)
-
-```
-id_usina,data_hora_observacao,valor
-BAFJS7,2024-01-01T12:00:00,850.5
+```bash
+pipx install git+https://github.com/rjmalves/rest2-ons
+rest2-ons --help
 ```
 
----
+Se o comando não for encontrado, `pipx ensurepath` adiciona o diretório dos
+executáveis ao `PATH`.
 
-## 📊 Saídas
+```bash
+pipx reinstall rest2-ons   # atualiza para o último commit do main
+pipx uninstall rest2-ons   # remove
+```
 
-### Modo Training
+### setup.sh, a partir de um clone
 
-| Saída            | Localização       | Descrição                           |
-| ---------------- | ----------------- | ----------------------------------- |
-| `{usina}.json`   | `artifact/`       | Parâmetros treinados e métricas     |
-| `{usina}_*.html` | `artifact/plots/` | Gráficos interativos de treinamento |
+O `setup.sh` cria um ambiente virtual com o `python3` do sistema e instala o
+programa nele:
 
-#### Schema do Artefato JSON
+```bash
+git clone https://github.com/rjmalves/rest2-ons.git
+cd rest2-ons
+./setup.sh --user      # ou: make install-user
+```
+
+Com `--user`, o programa fica em `$HOME/.local/rest2-ons` e o comando em
+`$HOME/.local/bin`, que precisa estar no `PATH`. Sem `--user`,
+`sudo ./setup.sh` (ou `make install`) instala para todos os usuários, em
+`/opt/rest2-ons` e `/usr/local/bin`. Para atualizar, rode `git pull` e repita
+o comando com `--force`; para remover, use `--uninstall`. `./setup.sh --help`
+lista as opções.
+
+### Docker
+
+A imagem é construída a partir de um clone. Com o `config.jsonc` e o diretório
+`data` no diretório atual:
+
+```bash
+docker build -t rest2-ons .
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD/data:/app/data" \
+  -v "$PWD/config.jsonc:/app/config.jsonc:ro" \
+  rest2-ons --config config.jsonc
+```
+
+O diretório de trabalho do contêiner é `/app`, então caminhos relativos no
+`config.jsonc`, como `data/input`, apontam para o diretório `data` montado.
+`--user` roda o contêiner com o seu usuário; sem ele, o processo usa o usuário
+da imagem e pode não ter permissão de escrita em `data`.
+
+### Desenvolvimento
+
+Para trabalhar no código (ambiente de desenvolvimento, testes e verificações),
+veja o [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Uso
+
+1. Crie o arquivo de configuração a partir do exemplo:
+
+   ```bash
+   curl -fsSL -o config.jsonc https://raw.githubusercontent.com/rjmalves/rest2-ons/main/config.example.jsonc
+   ```
+
+   Num clone, `cp config.example.jsonc config.jsonc` faz o mesmo.
+
+2. Coloque os arquivos de entrada no diretório `input` da configuração (veja
+   [Dados de entrada](#dados-de-entrada)).
+
+3. Com `"mode": "train"`, ajuste os parâmetros:
+
+   ```bash
+   rest2-ons --config config.jsonc
+   ```
+
+4. Mude para `"mode": "inference"` e rode o mesmo comando para gerar as
+   previsões.
+
+Sem `--config`, o programa lê `config.jsonc` do diretório atual. O log vai
+para a saída de erro, e qualquer falha encerra o programa com código 1.
+
+### Configuração
+
+O arquivo é JSON com comentários (JSONC). Todas as chaves são obrigatórias,
+exceto `postprocessing`.
+
+| Chave                   | Descrição                                                                                                                                                                                                 |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mode`                  | `"train"` ajusta os parâmetros e grava os artefatos; `"inference"` lê os artefatos e grava as previsões                                                                                                   |
+| `input`                 | Diretório dos arquivos de entrada                                                                                                                                                                         |
+| `artifact`              | Diretório dos artefatos: gravados no treino, lidos na inferência                                                                                                                                          |
+| `output`                | Diretório das previsões                                                                                                                                                                                   |
+| `plant_ids`             | Lista de `id_usina` a processar; `null` processa todas as usinas de `usinas.csv`                                                                                                                          |
+| `forecasting_day_ahead` | Antecedência da previsão em dias inteiros, contada de `data_hora_rodada` a `data_hora_previsao`: `0` usa as previsões feitas com menos de 24 h de antecedência, `1` as de 24 h a 48 h, e assim por diante |
+| `target_radiation_type` | Tipo de irradiância medida e prevista: `"ghi"`, `"dni"`, `"dhi"` ou `"ghi_tracker"` (GHI em seguidor)                                                                                                     |
+| `time_windows`          | Janelas `training`, `validation`, `test` e `inference`, cada uma como `"início/fim"` em ISO 8601, em UTC, com as duas pontas incluídas                                                                    |
+| `postprocessing.plots`  | `true` grava gráficos HTML interativos; padrão `false`                                                                                                                                                    |
+
+As quatro janelas são exigidas nos dois modos. O treino ajusta os parâmetros
+em `training` e calcula as métricas também em `validation` e `test`; a
+inferência prevê a janela `inference`.
+
+Na inferência, use o mesmo `target_radiation_type` do treino. O tipo gravado
+no artefato não é conferido, e outro tipo aplica os parâmetros a outra
+grandeza sem aviso.
+
+### S3
+
+`input`, `output` e `artifact` aceitam caminhos `s3://bucket/prefixo`,
+combinados livremente com caminhos locais. As credenciais seguem a
+[cadeia padrão da AWS](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html):
+variáveis de ambiente (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
+`AWS_DEFAULT_REGION`), um perfil (`AWS_PROFILE`) ou o papel IAM da máquina.
+
+## Dados de entrada
+
+O diretório `input` contém um arquivo por variável:
+
+| Arquivo                       | Conteúdo                                                        |
+| ----------------------------- | --------------------------------------------------------------- |
+| `usinas.csv`                  | Uma linha por usina: `id_usina`, `latitude`, `longitude`        |
+| `measured_irradiance.parquet` | Irradiância medida: `id_usina`, `data_hora_observacao`, `valor` |
+| `cod.parquet`                 | Previsão de profundidade óptica de nuvens                       |
+| `albedo.parquet`              | Previsão CAMS de albedo da superfície                           |
+| `h2o.parquet`                 | Previsão CAMS de vapor d'água                                   |
+| `no2.parquet`                 | Previsão CAMS de dióxido de nitrogênio                          |
+| `o3.parquet`                  | Previsão CAMS de ozônio                                         |
+| `od550.parquet`               | Previsão CAMS de profundidade óptica de aerossóis em 550 nm     |
+| `od670.parquet`               | Previsão CAMS de profundidade óptica de aerossóis em 670 nm     |
+| `psurf.parquet`               | Previsão CAMS de pressão na superfície                          |
+| `temp.parquet`                | Previsão CAMS de temperatura a 2 m                              |
+
+O `usinas.csv` e os arquivos de previsão são obrigatórios nos dois modos; o
+`measured_irradiance.parquet` só é lido no treino. Os arquivos de previsão têm
+as colunas `latitude`, `longitude`, `data_hora_rodada` (início da rodada),
+`data_hora_previsao` (instante previsto) e `valor`.
+
+- Datas e horas não têm fuso horário e significam UTC.
+- Latitude e longitude estão em graus decimais.
+- Em `measured_irradiance.parquet`, `valor` é a irradiância em W/m² do tipo
+  escolhido em `target_radiation_type`.
+- Cada variável de previsão tem uma unidade declarada. Um arquivo cujos
+  valores caem fora da faixa plausível dessa unidade, o sinal típico de
+  unidade trocada, é rejeitado na leitura. A tabela de unidades e a regra
+  exata estão em
+  [METHODOLOGY.md](METHODOLOGY.md#input-data-requirements).
+- Cada usina usa o ponto de grade mais próximo das suas coordenadas: o de
+  `albedo.parquet` para todas as variáveis CAMS e o de `cod.parquet` para a
+  COD. Os arquivos CAMS precisam, portanto, ter os mesmos pontos de grade de
+  `albedo.parquet`.
+
+## Saídas
+
+Treino, no diretório `artifact`:
+
+- `{id_usina}.json`: parâmetros ajustados, métricas (ME, MAE e RMSE, em
+  W/m²) nas janelas de treino, validação e teste, e o tipo de radiação.
+- `plots/{id_usina}_train_*.html`: gráficos, quando `postprocessing.plots` é
+  `true`.
 
 ```json
 {
@@ -262,110 +223,50 @@ BAFJS7,2024-01-01T12:00:00,850.5
 }
 ```
 
-### Modo Inference
+Inferência, no diretório `output`:
 
-| Saída             | Localização     | Descrição                        |
-| ----------------- | --------------- | -------------------------------- |
-| `{usina}.parquet` | `output/`       | Previsões (time, valor)          |
-| `{usina}_*.html`  | `output/plots/` | Gráficos interativos de previsão |
+- `{id_usina}.parquet`: colunas `time` (sem fuso horário, em UTC) e `valor`
+  (irradiância prevista em W/m², do tipo `target_radiation_type`).
+- `plots/{id_usina}_inference_*.html`: gráficos, quando
+  `postprocessing.plots` é `true`.
 
----
+## Metodologia
 
-## 🔬 Metodologia
+O REST2 calcula a irradiância de céu claro em duas bandas espectrais a partir
+de pressão, ozônio, NO₂, vapor d'água, aerossóis e albedo. O `rest2-ons`
+acrescenta a atenuação por nuvens a partir da COD, com dois parâmetros, `mu0`
+e `g`, que o treino ajusta por usina com L-BFGS-B dentro de limites físicos,
+minimizando o RMSE na janela de treino. As equações, os limites dos
+parâmetros e as métricas estão em [METHODOLOGY.md](METHODOLOGY.md).
 
-O modelo REST2 divide o espectro solar em duas bandas e calcula a transmitância atmosférica através de múltiplos processos físicos (espalhamento Rayleigh, extinção por aerossóis, absorção por gases, efeitos de nuvens).
+## Limitações
 
-**Inovação Principal**: Esta implementação considera uma adaptação do modelo REST2 para gerar previsões de irradiância em condições de nebulosidade, e otimiza dois parâmetros de tal adaptação:
+- Cada usina é tratada como um ponto: usa um único ponto de grade, sem média
+  espacial.
+- As nuvens são descritas apenas pela profundidade óptica.
+- O sombreamento por relevo não é considerado.
 
-- **mu0**: Deslocamento do cosseno efetivo de nuvens em `exp(-cod / (0.5 + mu0))`, limitado a [cos 85° - 0.5, 0.5]; quanto maior o mu0, menor a atenuação por nuvens
-- **g**: Parâmetro de assimetria de nuvens na transmitância difusa de nuvens, limitado a [0, 1]
+## Documentação
 
-A otimização usa L-BFGS-B com limites físicos para minimizar o RMSE contra dados medidos.
+- [METHODOLOGY.md](METHODOLOGY.md): equações do REST2, unidades de entrada,
+  calibração e métricas (em inglês).
+- [ARCHITECTURE.md](ARCHITECTURE.md): módulos e fluxo de dados.
+- [CONTRIBUTING.md](CONTRIBUTING.md): ambiente de desenvolvimento, testes e
+  verificações.
+- [CHANGELOG.md](CHANGELOG.md): mudanças entre versões.
 
-Para metodologia detalhada, veja [METHODOLOGY.md](METHODOLOGY.md).
+Dúvidas e problemas: [GitHub Issues](https://github.com/rjmalves/rest2-ons/issues).
 
----
+## Licença
 
-## ⚠️ Limitações Conhecidas
-
-- **Resolução Temporal**: Otimizado para dados horários a sub-horários
-- **Resolução Espacial**: Modelo pontual, não para médias de grandes áreas
-- **Tratamento de Nuvens**: Simplificado (apenas profundidade óptica)
-- **Efeitos de Terreno**: Não considera sombreamento topográfico
-- **Requisitos de Dados**: Requer todos os parâmetros atmosféricos e de concentração de gases, que podem ser obtidos do sistema/modelo europeu CAMS/ECMWF
-
----
-
-## 🧪 Testes
-
-```bash
-# Executar todos os testes
-make test
-
-# Apenas testes unitários
-make test-unit
-
-# Apenas testes de integração
-make test-integration
-
-# Com cobertura
-make test-cov
-
-# Testes específicos de S3 (requer moto)
-make test-s3
-
-# Linting
-make lint
-
-# Formatação
-make format
-
-# Ou usando pytest diretamente:
-pytest
-pytest --cov=app
-
-# Type checking
-mypy app/
-```
-
----
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Por favor, leia o [CONTRIBUTING.md](CONTRIBUTING.md) para detalhes sobre:
-
-- Configuração do ambiente de desenvolvimento
-- Padrões de código e linting
-- Processo de submissão de Pull Requests
-
----
-
-## 📜 Licença
-
-Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
-
----
-
-## 📚 Documentação Adicional
-
-- [METHODOLOGY.md](METHODOLOGY.md) - Detalhes técnicos do modelo REST2 e otimização
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Arquitetura do sistema e decisões de design
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Guia de contribuição
-- [CHANGELOG.md](CHANGELOG.md) - Histórico de versões
-
----
-
-## 📞 Contato
-
-- **Organização**: [ONS - Operador Nacional do Sistema Elétrico](https://www.ons.org.br/)
-- **Issues**: [GitHub Issues](https://github.com/rjmalves/rest2-ons/issues)
-
----
+MIT. Veja [LICENSE](LICENSE).
 
 ## Referências
 
-- Gueymard, C. A. (2008). REST2: High-performance solar radiation model for cloudless-sky irradiance, illuminance, and photosynthetically active radiation. _Solar Energy_, 82(3), 272-285.
-- [NREL REST2 Implementation](https://github.com/NREL/rest2)
+- Gueymard, C. A. (2008). REST2: High-performance solar radiation model for
+  cloudless-sky irradiance, illuminance, and photosynthetically active
+  radiation. _Solar Energy_, 82(3), 272-285.
+- [Implementação do REST2 pelo NREL](https://github.com/NREL/rest2)
 
 ## Citação
 
