@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- Input-unit contract (`app/input_contract.py`), enforced at the read boundary
+- pandas, scipy, pytz and botocore declared as runtime dependencies, with a clean-install check in CI
+
+### Fixed
+
+- Metrics and objective computed on timestamp-aligned series, with an explicit error when they share no timestamp
+- Bounded L-BFGS-B calibration (mu0 in [cos 85 deg - 0.5, 0.5], g in [0, 1]), with a warning when a fit ends on a bound
+- ghi_tracker inference no longer crashes
+- In-sample metrics score the target radiation type
+- `dhi` is a trainable target
+- `setup.sh` syntax error fixed
+- Surface pressure is no longer converted twice
+
+---
+
 ## [0.1.0] - 2025-11-28
 
 ### Added

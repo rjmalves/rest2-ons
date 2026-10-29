@@ -44,7 +44,7 @@ Esta aplicação implementa uma generalização por aprendizado de máquina do [
 │                         MODO: TRAIN (train.py)                             │
 │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐  │
 │  │ Carga de Dados & │  │ Cálculo de       │  │ Otimização de Parâmetros │  │
-│  │ Pré-processamento│→ │ Geometria Solar  │→ │ (minimização BFGS)       │  │
+│  │ Pré-processamento│→ │ Geometria Solar  │→ │ (L-BFGS-B com limites)   │  │
 │  └──────────────────┘  └──────────────────┘  └───────────┬──────────────┘  │
 │                                                          │                 │
 │                                                          ▼                 │
@@ -73,7 +73,7 @@ Esta aplicação implementa uma generalização por aprendizado de máquina do [
 
 | Módulo             | Descrição                                                |
 | ------------------ | -------------------------------------------------------- |
-| `app/train.py`     | Pipeline de treinamento com otimização BFGS              |
+| `app/train.py`     | Pipeline de treinamento com otimização L-BFGS-B com limites |
 | `app/inference.py` | Pipeline de previsão usando parâmetros treinados         |
 | `app/readers.py`   | Leitura de dados de arquivos Parquet/CSV                 |
 | `app/writers.py`   | Geração de saídas (Parquet, JSON, gráficos HTML)         |
@@ -254,7 +254,7 @@ BAFJS7,2024-01-01T12:00:00,850.5
 
 ```json
 {
-  "parameters": { "mu0": 18.77, "g": 0.85 },
+  "parameters": { "mu0": 0.2, "g": 0.85 },
   "metrics": {
     "train": { "ME": -9.2, "MAE": 66.6, "RMSE": 134.0 },
     "validation": { "ME": -0.7, "MAE": 69.9, "RMSE": 220.6 },
@@ -279,10 +279,10 @@ O modelo REST2 divide o espectro solar em duas bandas e calcula a transmitância
 
 **Inovação Principal**: Esta implementação considera uma adaptação do modelo REST2 para gerar previsões de irradiância em condições de nebulosidade, e otimiza dois parâmetros de tal adaptação:
 
-- **mu0**: Fator de escala para efeito da profundidade óptica de nuvens
-- **g**: Parâmetro de assimetria de aerossóis (tipicamente fixo em 0.85)
+- **mu0**: Deslocamento do cosseno efetivo de nuvens em `exp(-cod / (0.5 + mu0))`, limitado a [cos 85° - 0.5, 0.5]; quanto maior o mu0, menor a atenuação por nuvens
+- **g**: Parâmetro de assimetria de nuvens na transmitância difusa de nuvens, limitado a [0, 1]
 
-A otimização usa BFGS (Broyden-Fletcher-Goldfarb-Shanno) para minimizar o RMSE contra dados medidos.
+A otimização usa L-BFGS-B com limites físicos para minimizar o RMSE contra dados medidos.
 
 Para metodologia detalhada, veja [METHODOLOGY.md](METHODOLOGY.md).
 

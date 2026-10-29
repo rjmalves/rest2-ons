@@ -17,6 +17,14 @@ import numpy as np
 import polars as pl
 
 
+def _hourly_times(start_date: datetime, num_days: int) -> list[datetime]:
+    return [
+        start_date + timedelta(days=day, hours=hour)
+        for day in range(num_days)
+        for hour in range(24)
+    ]
+
+
 def generate_atmospheric_data(
     output_dir: Path,
     lat_range: tuple[float, float] = (-24.0, -21.0),
@@ -44,11 +52,7 @@ def generate_atmospheric_data(
     lats = np.linspace(lat_range[0], lat_range[1], 4)
     lons = np.linspace(lon_range[0], lon_range[1], 4)
 
-    # Time series (hourly data)
-    times = []
-    for day in range(num_days):
-        for hour in range(24):
-            times.append(start_date + timedelta(days=day, hours=hour))
+    times = _hourly_times(start_date, num_days)
 
     print(
         f"Generating {len(times)} time steps for {len(lats) * len(lons)} grid points"
@@ -62,8 +66,8 @@ def generate_atmospheric_data(
         "o3": (0.005, 0.015),  # Ozone (kg/m2)
         "od550": (0.05, 0.5),  # Aerosol optical depth at 550nm
         "od670": (0.03, 0.4),  # Aerosol optical depth at 670nm
-        "psurf": (95000, 102000),  # Surface pressure (Pa)
-        "temp": (280, 310),  # 2m temperature (K)
+        "psurf": (950.0, 1020.0),  # Surface pressure (hPa)
+        "temp": (6.85, 36.85),  # 2m temperature (degC)
     }
 
     total_rows = 0
@@ -119,10 +123,7 @@ def generate_cod_data(
     lats = np.linspace(lat_range[0], lat_range[1], 4)
     lons = np.linspace(lon_range[0], lon_range[1], 4)
 
-    times = []
-    for day in range(num_days):
-        for hour in range(24):
-            times.append(start_date + timedelta(days=day, hours=hour))
+    times = _hourly_times(start_date, num_days)
 
     rows = []
     for time in times:
@@ -172,10 +173,7 @@ def generate_measured_data(
 
     np.random.seed(44)
 
-    times = []
-    for day in range(num_days):
-        for hour in range(24):
-            times.append(start_date + timedelta(days=day, hours=hour))
+    times = _hourly_times(start_date, num_days)
 
     rows = []
     for plant_id in plant_ids:

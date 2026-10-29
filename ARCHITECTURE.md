@@ -44,7 +44,7 @@ O sistema implementa um pipeline de processamento de dados para previsão de irr
     │     ▼                             ▼            ▼                   │
     │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  │
     │  │ load_data()      │  │ optimize_params()│  │ apply_rest2()    │  │
-    │  │ readers.py       │  │ minimização BFGS │  │ services/rest2   │  │
+    │  │ readers.py       │  │ minim. L-BFGS-B  │  │ services/rest2   │  │
     │  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘  │
     │           │                     │                     │            │
     │           │                     ▼                     │            │
@@ -133,7 +133,7 @@ Implementa o pipeline de treinamento com otimização de parâmetros.
 | ----------------------- | -------------------------------------- |
 | `TrainManager.train()`  | Orquestra treinamento para todas usinas|
 | `_train_for_plant()`    | Processa uma usina                     |
-| `_train_rest2()`        | Executa otimização BFGS                |
+| `_train_rest2()`        | Executa otimização L-BFGS-B            |
 | `_evaluate_rest2()`     | Calcula ME, MAE, RMSE                  |
 
 #### Algoritmo de Otimização
@@ -143,10 +143,10 @@ Para cada usina, otimiza parâmetros para minimizar RMSE:
 ```
 minimizar: RMSE(medido, REST2(params, dados_atmosfericos))
 
-Método: BFGS (Broyden-Fletcher-Goldfarb-Shanno)
+Método: L-BFGS-B (BFGS de memória limitada com limites)
 Parâmetros:
-  - mu0: fator de escala da profundidade óptica de nuvens
-  - g: parâmetro de assimetria de aerossóis (tipicamente fixo em 0.85)
+  - mu0: deslocamento do cosseno efetivo de nuvens, em [cos 85° - 0.5, 0.5]
+  - g: parâmetro de assimetria de nuvens, em [0, 1]
 ```
 
 ### 5. Inferência (`app/inference.py`)
@@ -313,11 +313,12 @@ data/output/
 - **Segurança de tipos**: Tipagem forte detecta erros cedo
 - **API moderna**: Sintaxe mais limpa para operações comuns
 
-### Por que BFGS para Otimização?
+### Por que L-BFGS-B para Otimização?
 
 - **Eficiência**: Método Quasi-Newton, eficiente para espaços de parâmetros pequenos
 - **Convergência**: Boas propriedades de convergência para funções suaves
 - **Disponibilidade**: Embutido no scipy, implementação bem testada
+- **Limites**: Os limites mantêm mu0 e g em suas faixas físicas
 
 ### Por que Processar Usinas Individualmente?
 
@@ -412,7 +413,7 @@ s3fs (>= 2024.10.0)
 
 1. **Carga de Dados**: Arquivos Parquet grandes podem ser lentos
    - Mitigação: Usar predicate pushdown, seleção de colunas
-2. **Iterações de Otimização**: BFGS pode requerer muitas iterações
+2. **Iterações de Otimização**: L-BFGS-B pode requerer muitas iterações
    - Mitigação: Bons valores iniciais, tolerância de convergência
 3. **Geração de Gráficos**: Grandes datasets criam arquivos HTML pesados
    - Mitigação: Downsample para visualização

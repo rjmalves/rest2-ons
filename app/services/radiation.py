@@ -1,3 +1,5 @@
+import logging
+from collections.abc import Callable
 from typing import Union
 
 import numpy as np
@@ -9,6 +11,8 @@ from app.utils.metrics import mae, me, rmse
 from app.utils.utils import extraterrestrial_radiation
 
 ArrayLike = Union[np.ndarray, float, int]
+
+logger = logging.getLogger(__name__)
 
 
 class AirMassResults:
@@ -105,16 +109,38 @@ class REST2Result:
         self.dhi_cs = dhi_cs
 
     def get(self, radiation_type: str) -> pl.DataFrame:
-        if radiation_type == "ghi":
-            return self.ghi
-        elif radiation_type == "dni":
-            return self.dni
-        elif radiation_type == "dhi":
-            return self.dhi
-        if radiation_type == "ghi_tracker":
-            return self.ghi_tracker
-        else:
+        series = {
+            "ghi": self.ghi,
+            "ghi_tracker": self.ghi_tracker,
+            "dni": self.dni,
+            "dhi": self.dhi,
+            "ghi_cs": self.ghi_cs,
+            "ghi_tracker_cs": self.ghi_tracker_cs,
+            "dni_cs": self.dni_cs,
+            "dhi_cs": self.dhi_cs,
+        }
+        if radiation_type not in series:
             raise ValueError(f"Unknown radiation type: {radiation_type}")
+        return series[radiation_type]
+
+
+def _align_on_time(
+    measured: pl.DataFrame, modeled: pl.DataFrame
+) -> tuple[np.ndarray, np.ndarray]:
+    joined = (
+        measured.select("time", pl.col("valor").alias("measured"))
+        .join(
+            modeled.select("time", pl.col("valor").alias("modeled")),
+            on="time",
+            how="inner",
+        )
+        .sort("time")
+    )
+    if joined.height == 0:
+        raise ValueError(
+            "no overlapping timestamps between measured and modeled radiation"
+        )
+    return joined["measured"].to_numpy(), joined["modeled"].to_numpy()
 
 
 class REST2:
@@ -127,6 +153,12 @@ class REST2:
     COD_BOUNDS = [0.0, 160.0]
 
     DEFAULT_PARAMETERS = {"mu0": 0.0, "g": 0.85}
+    # 0.5 + mu0 is the effective cloud cosine, kept in [cos(85 deg), 1]
+    MAX_EFFECTIVE_ZENITH_DEG = 85.0
+    PARAMETER_BOUNDS = {
+        "mu0": (float(np.cos(np.deg2rad(MAX_EFFECTIVE_ZENITH_DEG))) - 0.5, 0.5),
+        "g": (0.0, 1.0),
+    }
 
     # Instance attributes (typed as they are after __init__ completes)
     cod: np.ndarray
@@ -918,65 +950,55 @@ class REST2:
 
         return self.result
 
-    @staticmethod
-    def _choose_radiation_for_metric(
-        result: REST2Result, radiation_type: str
-    ) -> pl.DataFrame:
-        if radiation_type == "dni":
-            return result.dni
-        elif radiation_type == "dni_cs":
-            return result.dni_cs
-        elif radiation_type == "ghi":
-            return result.ghi
-        elif radiation_type == "ghi_cs":
-            return result.ghi_cs
-        elif radiation_type == "ghi_tracker":
-            return result.ghi_tracker
-        elif radiation_type == "ghi_tracker_cs":
-            return result.ghi_tracker_cs
-        else:
-            raise ValueError(f"Unknown radiation type: {radiation_type}")
-
-    def train(
-        self, measured: pl.DataFrame, radiation_type: str = "dni"
-    ) -> dict:
+    def _fit(self, objective: Callable[[np.ndarray], float]) -> dict:
         parameter_keys = list(self.DEFAULT_PARAMETERS.keys())
         parameter_initial_values = np.array(
             [self.DEFAULT_PARAMETERS[key] for key in parameter_keys]
         )
+        res = minimize(
+            objective,
+            x0=parameter_initial_values,
+            method="L-BFGS-B",
+            bounds=[self.PARAMETER_BOUNDS[key] for key in parameter_keys],
+        )
+        fitted = dict(zip(parameter_keys, res.x))
+        for key, value in fitted.items():
+            lower, upper = self.PARAMETER_BOUNDS[key]
+            for side, bound in (("lower", lower), ("upper", upper)):
+                if abs(value - bound) <= 1e-6 * (upper - lower):
+                    logger.warning(
+                        "calibrated %s=%.6g lies on its %s bound %.6g "
+                        "(bounds [%.6g, %.6g])",
+                        key,
+                        value,
+                        side,
+                        bound,
+                        lower,
+                        upper,
+                    )
+        return fitted
+
+    def train(self, measured: pl.DataFrame, *, radiation_type: str) -> dict:
+        parameter_keys = list(self.DEFAULT_PARAMETERS.keys())
 
         def f(params: np.ndarray) -> float:
-            params_dict = {
-                parameter_keys[i]: params[i] for i in range(len(params))
-            }
-            result = self.convert_radiation(
-                params_dict,
-            )
-            chosen_radiation = self._choose_radiation_for_metric(
-                result, radiation_type
-            )
-            return rmse(
-                np.array(measured["valor"]), np.array(chosen_radiation["valor"])
-            )
+            params_dict = dict(zip(parameter_keys, params))
+            result = self.convert_radiation(params_dict)
+            return rmse(*_align_on_time(measured, result.get(radiation_type)))
 
-        res = minimize(f, x0=parameter_initial_values, method="BFGS")
-        return {parameter_keys[i]: res.x[i] for i in range(len(parameter_keys))}
+        return self._fit(f)
 
     def evaluate(
         self,
         result: REST2Result,
         measured: pl.DataFrame,
-        radiation_type: str = "dni",
+        *,
+        radiation_type: str,
     ) -> dict:
-        chosen_radiation = self._choose_radiation_for_metric(
-            result, radiation_type
+        measured_values, modeled_values = _align_on_time(
+            measured, result.get(radiation_type)
         )
-        metrics = {}
-        for metric_name, metric_f in zip(
-            ["ME", "MAE", "RMSE"], [me, mae, rmse]
-        ):
-            metrics[metric_name] = metric_f(
-                np.array(measured["valor"]), np.array(chosen_radiation["valor"])
-            )
-
-        return metrics
+        return {
+            name: metric(measured_values, modeled_values)
+            for name, metric in zip(["ME", "MAE", "RMSE"], [me, mae, rmse])
+        }

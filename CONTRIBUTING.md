@@ -131,7 +131,7 @@ def train_plant(plant_id: str, data: pl.DataFrame) -> TrainResult:
     """
     Treina parâmetros do modelo REST2 para uma usina.
 
-    Otimiza os parâmetros mu0 e g usando minimização BFGS
+    Otimiza os parâmetros mu0 e g usando minimização L-BFGS-B com limites
     para minimizar o RMSE contra dados medidos de irradiância.
 
     Args:

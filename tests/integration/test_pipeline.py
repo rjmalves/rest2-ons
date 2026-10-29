@@ -3,6 +3,7 @@ from datetime import datetime
 import polars as pl
 import pytest
 
+from app.input_contract import validate_input_units
 from app.readers import InputData
 from app.storage import StorageFactory
 
@@ -19,16 +20,22 @@ class TestFullPipeline:
         input_dir = tmp_path / "input"
         input_dir.mkdir()
 
-        # Create required data files
+        # Create required data files in the declared input units
         files = {
             "albedo.parquet": sample_atmospheric_data,
             "cod.parquet": sample_cod_data,
             "h2o.parquet": sample_atmospheric_data,
-            "no2.parquet": sample_atmospheric_data,
-            "o3.parquet": sample_atmospheric_data,
+            "no2.parquet": sample_atmospheric_data.with_columns(
+                pl.col("valor") * 1e-3
+            ),
+            "o3.parquet": sample_atmospheric_data.with_columns(
+                pl.col("valor") * 1e-2
+            ),
             "od550.parquet": sample_atmospheric_data,
             "od670.parquet": sample_atmospheric_data,
-            "psurf.parquet": sample_atmospheric_data,
+            "psurf.parquet": sample_atmospheric_data.with_columns(
+                pl.col("valor") * 100.0 + 900.0
+            ),
             "temp.parquet": sample_atmospheric_data,
         }
 
@@ -67,6 +74,24 @@ class TestFullPipeline:
         usinas = reader.read_usinas()
         assert len(usinas) > 0
         assert "id_usina" in usinas.columns
+
+    def test_fixture_files_match_declared_units(self, setup_test_data):
+        """Test that every fixture file is plausible in its declared unit."""
+        stem_to_input = {
+            "albedo": "albedo",
+            "h2o": "h2o",
+            "no2": "no2",
+            "o3": "o3",
+            "od550": "od550",
+            "od670": "od670",
+            "psurf": "psurf",
+            "temp": "temp2m",
+            "cod": "cod",
+        }
+
+        for stem, input_name in stem_to_input.items():
+            df = pl.read_parquet(setup_test_data / f"{stem}.parquet")
+            validate_input_units(input_name, df["valor"])
 
     def test_storage_factory_with_local_path(self, tmp_path):
         """Test StorageFactory returns correct backend for local path."""

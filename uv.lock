@@ -1642,14 +1642,18 @@ name = "rest2-ons"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
+    { name = "botocore" },
     { name = "numpy" },
+    { name = "pandas" },
     { name = "plotly" },
     { name = "polars" },
     { name = "pyarrow" },
     { name = "pyjson5" },
     { name = "python-dotenv" },
+    { name = "pytz" },
     { name = "requests" },
     { name = "s3fs" },
+    { name = "scipy" },
     { name = "statsmodels" },
 ]
 
@@ -1663,16 +1667,17 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
     { name = "ruff" },
-    { name = "scipy" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.35.0" },
     { name = "boto3-stubs", marker = "extra == 'dev'", specifier = ">=1.41.3" },
+    { name = "botocore", specifier = ">=1.35.0" },
     { name = "moto", extras = ["s3"], marker = "extra == 'dev'", specifier = ">=5.1.17" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.18.2" },
     { name = "numpy", specifier = ">=2.3.2" },
+    { name = "pandas", specifier = ">=2.3.3" },
     { name = "pandas-stubs", marker = "extra == 'dev'", specifier = ">=2.3.2.250926" },
     { name = "plotly", specifier = ">=6.2.0" },
     { name = "polars", specifier = ">=1.31.0" },
@@ -1682,10 +1687,11 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.8.0" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
+    { name = "pytz", specifier = ">=2025.2" },
     { name = "requests", specifier = ">=2.32.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.6" },
     { name = "s3fs", specifier = ">=2024.10.0" },
-    { name = "scipy", marker = "extra == 'dev'", specifier = ">=1.16.3" },
+    { name = "scipy", specifier = ">=1.16.3" },
     { name = "statsmodels", specifier = ">=0.14.5" },
 ]
 provides-extras = ["dev"]

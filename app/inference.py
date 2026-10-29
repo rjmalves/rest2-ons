@@ -16,14 +16,7 @@ class PlantResult:
     radiation_type: str
 
     def chosen_radiation(self) -> pl.DataFrame:
-        if self.radiation_type == "ghi":
-            return self.radiation.ghi
-        elif self.radiation_type == "dni":
-            return self.radiation.dni
-        elif self.radiation_type == "dhi":
-            return self.radiation.dhi
-        else:
-            raise ValueError(f"Unknown radiation type: {self.radiation_type}")
+        return self.radiation.get(self.radiation_type)
 
 
 class InferenceManager:

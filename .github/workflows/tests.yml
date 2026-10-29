@@ -44,6 +44,12 @@ jobs:
         run: |
           uv run pytest tests/integration/
 
+      - name: Install from a clean checkout with setup.sh
+        run: |
+          export HOME="$(mktemp -d)"
+          ./setup.sh --user --quiet
+          "$HOME/.local/bin/rest2-ons" --help
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
