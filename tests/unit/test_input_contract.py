@@ -14,7 +14,7 @@ from app.input_contract import (
 )
 
 
-def test_declared_units_cover_reader_inputs():
+def test_declared_units_cover_reader_inputs() -> None:
     assert sorted(DECLARED_UNITS) == [
         "albedo",
         "cod",
@@ -32,13 +32,14 @@ def test_declared_units_cover_reader_inputs():
     )
 
 
-def test_hpa_pressure_passes():
+def test_hpa_pressure_passes() -> None:
     series = pl.Series([950.0, 1013.25, None, float("nan")])
 
-    assert validate_input_units("psurf", series) is None
+    # Pins the documented None return: the check signals only by raising.
+    assert validate_input_units("psurf", series) is None  # type: ignore[func-returns-value]
 
 
-def test_pa_pressure_raises_unit_mismatch():
+def test_pa_pressure_raises_unit_mismatch() -> None:
     series = pl.Series([95000.0, 101325.0])
 
     with pytest.raises(InputUnitMismatchError) as excinfo:
@@ -49,18 +50,21 @@ def test_pa_pressure_raises_unit_mismatch():
         assert expected in message
 
 
-def test_kelvin_temperature_raises_unit_mismatch():
+def test_kelvin_temperature_raises_unit_mismatch() -> None:
     series = pl.Series([298.0, 290.5, 305.0])
 
-    with pytest.raises(InputUnitMismatchError, match="temp2m.*degC"):
+    with pytest.raises(InputUnitMismatchError, match=r"temp2m.*degC"):
         validate_input_units("temp2m", series)
 
 
-def test_tail_outlier_warns_without_raising(caplog):
+def test_tail_outlier_warns_without_raising(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     series = pl.Series([1000.0] * 200 + [5000.0])
 
     with caplog.at_level(logging.WARNING, logger="app.input_contract"):
-        assert validate_input_units("psurf", series) is None
+        # Pins the documented None return: the check signals only by raising.
+        assert validate_input_units("psurf", series) is None  # type: ignore[func-returns-value]
 
     records = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert len(records) == 1
@@ -68,7 +72,9 @@ def test_tail_outlier_warns_without_raising(caplog):
     assert "1 of 201" in records[0].getMessage()
 
 
-def test_in_envelope_column_does_not_warn(caplog):
+def test_in_envelope_column_does_not_warn(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     with caplog.at_level(logging.WARNING, logger="app.input_contract"):
         validate_input_units("albedo", pl.Series([0.0, 0.2, 1.0]))
 
@@ -76,44 +82,47 @@ def test_in_envelope_column_does_not_warn(caplog):
 
 
 @pytest.mark.parametrize("outlier", [5000.0, 10.0])
-def test_bulk_outliers_raise_unit_mismatch(outlier):
+def test_bulk_outliers_raise_unit_mismatch(outlier: float) -> None:
     series = pl.Series([1000.0] * 90 + [outlier] * 10)
 
     with pytest.raises(InputUnitMismatchError, match="psurf"):
         validate_input_units("psurf", series)
 
 
-def test_integer_series_is_accepted():
-    assert validate_input_units("psurf", pl.Series([950, 1013, 1050])) is None
+def test_integer_series_is_accepted() -> None:
+    # Pins the documented None return: the check signals only by raising.
+    assert validate_input_units("psurf", pl.Series([950, 1013, 1050])) is None  # type: ignore[func-returns-value]
 
 
-def test_all_null_column_raises_empty_input():
+def test_all_null_column_raises_empty_input() -> None:
     series = pl.Series([None, None], dtype=pl.Float64)
 
     with pytest.raises(EmptyInputError, match="psurf"):
         validate_input_units("psurf", series)
 
 
-def test_all_nan_column_raises_empty_input():
+def test_all_nan_column_raises_empty_input() -> None:
     series = pl.Series([float("nan"), float("nan")])
 
     with pytest.raises(EmptyInputError, match="psurf"):
         validate_input_units("psurf", series)
 
 
-def test_unknown_input_raises_contract_error():
-    with pytest.raises(InputContractError, match="no declared unit.*'dni'"):
+def test_unknown_input_raises_contract_error() -> None:
+    with pytest.raises(InputContractError, match=r"no declared unit.*'dni'"):
         validate_input_units("dni", pl.Series([1.0]))
 
 
-def test_missing_plausibility_range_raises_contract_error(monkeypatch):
+def test_missing_plausibility_range_raises_contract_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delitem(input_contract.PLAUSIBLE_RANGES, ("psurf", "hPa"))
 
-    with pytest.raises(InputContractError, match="no plausibility range.*hPa"):
+    with pytest.raises(InputContractError, match=r"no plausibility range.*hPa"):
         validate_input_units("psurf", pl.Series([1000.0]))
 
 
-def test_contract_errors_are_value_errors():
+def test_contract_errors_are_value_errors() -> None:
     assert issubclass(InputContractError, ValueError)
     assert issubclass(InputUnitMismatchError, InputContractError)
     assert issubclass(EmptyInputError, InputContractError)

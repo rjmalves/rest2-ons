@@ -64,25 +64,33 @@ cd rest2-ons
 git remote add upstream https://github.com/rjmalves/rest2-ons.git
 
 # Instale as dependências com uv
-uv sync --all-extras --dev
+uv sync --extra dev
 
 # Ou com pip tradicional
-python -m venv venv
-source venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -e ".[dev]"
 ```
+
+O `uv.lock` é versionado, então `uv sync` reproduz o ambiente do CI.
+
+Instale o hook de pre-commit para rodar, antes de cada commit, os mesmos
+passos de lint, tipos e gates do CI:
+
+```bash
+ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+```
+
+O `.git-blame-ignore-revs` lista commits que só mudam o layout do código; o
+GitHub os ignora no blame, e
+`git config blame.ignoreRevsFile .git-blame-ignore-revs` faz o mesmo
+localmente.
 
 ### Verificando a Instalação
 
 ```bash
-# Executar testes
-uv run pytest tests/
-
-# Verificar linting
-uv run ruff check app/ tests/
-
-# Verificar tipos
-uv run mypy app/
+uv run pytest   # Testes
+make check      # Lint, formatação, tipos e gates (o mesmo que o hook)
 ```
 
 ---
@@ -93,18 +101,53 @@ uv run mypy app/
 
 Seguimos as convenções PEP 8 com algumas customizações definidas em `pyproject.toml`.
 
-### Verificação de Estilo
+### Executando as Verificações
 
 ```bash
-# Executar linter
-uv run ruff check app/ tests/
-
-# Formatar código automaticamente
-uv run ruff format app/ tests/
-
-# Verificar formatação sem modificar
-uv run ruff format --check app/ tests/
+uv run pytest --cov=app                               # testes, com o piso de cobertura
+uv run ruff check . && uv run ruff format --check .   # lint e formatação, árvore inteira
+uv run mypy app main.py tests scripts/ci              # tipos (strict, via pyproject.toml)
+uv run python scripts/ci/check_no_plan_leaks.py       # sem vocabulário de planejamento nos artefatos publicados
+uv run python scripts/ci/check_comment_refs.py        # sem referências frágeis na prosa do código
+uv run python scripts/ci/check_doc_paths.py           # todo caminho citado nos docs existe
+uv run ruff format .                                  # formata o código
 ```
+
+O CI (`.github/workflows/ci.yml`) roda o ruff, a checagem de formatação e os
+gates de `scripts/ci/` uma vez, e a checagem de tipos e os testes em cada
+versão de Python suportada. Os testes falham abaixo do piso de cobertura definido em
+`pyproject.toml` (`[tool.coverage.report]`); suba o piso quando a cobertura
+subir, nunca o reduza para aprovar uma mudança. O `scripts/README.md` descreve
+cada gate e os relatórios consultivos ao lado deles.
+
+### Convenções que o CI Aplica
+
+Os arquivos de regras em `.claude/rules/` são escritos para que um agente de
+código possa segui-los, e são a referência também para pessoas. Em resumo:
+
+- **Formatação e lint.** O `ruff format` define o layout; o `ruff check`
+  aplica o conjunto de regras do `pyproject.toml`. Todo `# noqa` e
+  `# type: ignore` nomeia o código e traz o motivo.
+- **Comentários desligados por padrão.** Um comentário só entra se removê-lo
+  permitir que um leitor competente introduza um bug ou perca um fato que vive
+  fora do arquivo. Contratos de unidade, de base de tempo e de tipo de radiação
+  nunca são removidos (`.claude/rules/comments.md`).
+- **Sem vocabulário de planejamento nem referências frágeis** na prosa do
+  código ou nos docs publicados (`.claude/rules/comments.md`,
+  `.claude/rules/doc-integrity.md`).
+- **Docs nunca fixam uma contagem ou versão à mão.** Declare a regra, ou fixe
+  o literal com um teste.
+- **Timestamps são naive e significam UTC.** A regra `DTZ` do ruff vale em
+  `app/` e `main.py`; os testes ficam de fora porque constroem datas naive de
+  propósito.
+- **Mensagens do CLI passam pelo `logging`**, nunca por `print` (regra `T20`
+  do ruff).
+- **Dependências de execução batem com os imports.** Todo pacote importado
+  por `app/` ou `main.py` está em `[project].dependencies`, e todo pacote
+  declarado ali é importado pela aplicação ou listado em `LAZILY_IMPORTED`
+  (`tests/unit/test_declared_dependencies.py`), quando uma biblioteca o
+  importa por conta própria. Ferramentas de desenvolvimento vão no extra
+  `dev`.
 
 ### Boas Práticas Python
 
@@ -117,6 +160,7 @@ Seguimos os princípios de código limpo e tipagem estática:
 def calcular_rmse(observado: np.ndarray, previsto: np.ndarray) -> float:
     """Calcula o erro médio absoluto."""
     return float(np.mean(np.abs(observado - previsto)))
+
 
 # ❌ Evitar: funções sem type hints
 def calcular_rmse(observado, previsto):
@@ -163,6 +207,7 @@ def processar_dados(df: pl.DataFrame, coluna: str) -> pl.DataFrame:
 # ✅ Bom: função pura
 def normalizar(valores: np.ndarray) -> np.ndarray:
     return (valores - valores.min()) / (valores.max() - valores.min())
+
 
 # ❌ Evitar: modificar entrada in-place sem documentar
 def normalizar(valores: np.ndarray) -> None:
@@ -214,19 +259,20 @@ pytest -m s3                     # Apenas testes S3
 
 Testes são categorizados usando markers do pytest:
 
-| Marker        | Descrição                                   |
-| ------------- | ------------------------------------------- |
+| Marker                     | Descrição                                     |
+| -------------------------- | --------------------------------------------- |
 | `@pytest.mark.unit`        | Testes unitários para componentes individuais |
-| `@pytest.mark.integration` | Testes de integração do pipeline completo   |
-| `@pytest.mark.slow`        | Testes que demoram para executar            |
-| `@pytest.mark.s3`          | Testes que requerem simulação S3/moto       |
-| `@pytest.mark.plotting`    | Testes que geram gráficos                   |
+| `@pytest.mark.integration` | Testes de integração do pipeline completo     |
+| `@pytest.mark.slow`        | Testes que demoram para executar              |
+| `@pytest.mark.s3`          | Testes que requerem simulação S3/moto         |
+| `@pytest.mark.plotting`    | Testes que geram gráficos                     |
 
 ### Escrevendo Testes
 
 ```python
 import pytest
 from app.readers import InputData
+
 
 class TestInputData:
     """Testa a classe InputData."""
@@ -265,6 +311,7 @@ def sample_atmospheric_data():
     # Retorna polars DataFrame com dados mock
     ...
 
+
 @pytest.fixture
 def mock_s3_bucket():
     """Cria um bucket S3 mock usando moto."""
@@ -277,7 +324,8 @@ def mock_s3_bucket():
 - Novas funções públicas devem ter testes
 - Casos de borda (NaN, vazios, tipos errados) devem ser testados
 - Testes devem ser independentes e reprodutíveis
-- Meta: >80% de cobertura para código novo
+- O CI falha abaixo do piso de cobertura definido em `pyproject.toml`
+- As regras completas estão em `.claude/rules/testing.md`
 
 ---
 
@@ -329,10 +377,8 @@ class REST2:
 2. **Execute verificações locais**
 
    ```bash
-   uv run ruff check app/ tests/     # Linting
-   uv run ruff format app/ tests/    # Formatação
-   uv run mypy app/                  # Type checking
-   uv run pytest tests/              # Testes
+   make check      # Lint, formatação, tipos e gates
+   uv run pytest   # Testes, com o piso de cobertura
    ```
 
 3. **Commits organizados**
@@ -374,7 +420,7 @@ Closes #123
 ### Revisão
 
 - PRs requerem pelo menos 1 aprovação
-- CI deve passar (testes, lint, type check)
+- CI deve passar (testes, lint, formatação, tipos e gates)
 - Discussões devem ser resolvidas antes do merge
 
 ---

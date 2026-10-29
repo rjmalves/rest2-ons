@@ -1,6 +1,7 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Any
 
 import numpy as np
 import polars as pl
@@ -11,6 +12,8 @@ from app.internal.config import Config
 from app.storage import StorageFactory
 from app.utils.data import PlantArtifact
 from app.utils.utils import haversine_distance
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -30,22 +33,25 @@ class LocationInputData:
     temp2m: pl.DataFrame
 
     # Derived fields (computed from raw data)
-    angstrom_exponent: Optional[pl.DataFrame] = None
+    angstrom_exponent: pl.DataFrame | None = None
 
     # Metadata
-    time_range: Optional[tuple[datetime, datetime]] = None
-    forecasting_day: Optional[int] = None
+    time_range: tuple[datetime, datetime] | None = None
+    forecasting_day: int | None = None
 
     def apply_unit_conversions(self) -> "LocationInputData":
         self.o3 = self.o3.with_columns(
             pl.col("valor") * 46.73
-        )  # kg/m2 -> atm-cm: ro_o3 = 2.14kg/m3 => o3[kg/m2]/ro_o3 * 100 (m->cm) = 46.73
+        )  # kg/m2 -> atm-cm:
+        # ro_o3 = 2.14kg/m3 => o3[kg/m2]/ro_o3 * 100 (m->cm) = 46.73
         self.h2o = self.h2o.with_columns(
             pl.col("valor") * 0.1
-        )  # kg/m2 -> atm-cm: ro_h2o = 1000 kg/m3 => h2o[kg/m2]/ro_h2o * 100 (m->cm) = 0.1
+        )  # kg/m2 -> atm-cm:
+        # ro_h2o = 1000 kg/m3 => h2o[kg/m2]/ro_h2o * 100 (m->cm) = 0.1
         self.no2 = self.no2.with_columns(
             pl.col("valor") * 48.78
-        )  # kg/m2 -> atm-cm: ro_no2 = 2.05kg/m3 => no2[kg/m2]/ro_no2 * 100 (m->cm) = 48.78
+        )  # kg/m2 -> atm-cm:
+        # ro_no2 = 2.05kg/m3 => no2[kg/m2]/ro_no2 * 100 (m->cm) = 48.78
 
         return self
 
@@ -94,31 +100,15 @@ class LocationInputData:
             )
         return self
 
-    def get_rest2_inputs(self) -> Dict[str, object]:
-        return {
-            "angstrom_exponent": self.angstrom_exponent,
-            "pressure": self.psurf,
-            "water_vapour": self.h2o,
-            "ozone": self.o3,
-            "nitrogen_dioxide": self.no2,
-            "surface_albedo": self.albedo,
-            "optical_depth_550nm": self.od550,
-            "cod": self.cod,
-            "lat": self.latitude,
-            "lon": self.longitude,
-        }
-
 
 class LocationDataBuilder:
     def __init__(self, reader: "InputData", latitude: float, longitude: float):
         self.reader = reader
         self.latitude = latitude
         self.longitude = longitude
-        self.start_date: Optional[datetime] = None
-        self.end_date: Optional[datetime] = None
-        self.forecasting_day: Optional[int] = None
-        self._apply_unit_conversions = True
-        self._calculate_derived_fields = True
+        self.start_date: datetime | None = None
+        self.end_date: datetime | None = None
+        self.forecasting_day: int | None = None
 
     def time_range(
         self, start_date: datetime, end_date: datetime
@@ -131,14 +121,6 @@ class LocationDataBuilder:
         self.forecasting_day = day
         return self
 
-    def skip_unit_conversions(self) -> "LocationDataBuilder":
-        self._apply_unit_conversions = False
-        return self
-
-    def skip_derived_fields(self) -> "LocationDataBuilder":
-        self._calculate_derived_fields = False
-        return self
-
     def build(self) -> LocationInputData:
         return self.reader._build_location_data(
             self.latitude,
@@ -146,8 +128,6 @@ class LocationDataBuilder:
             self.start_date,
             self.end_date,
             self.forecasting_day,
-            self._apply_unit_conversions,
-            self._calculate_derived_fields,
         )
 
 
@@ -156,7 +136,9 @@ class InputData:
         self.path = path
         self.storage = StorageFactory.get_storage(path)
 
-    def _apply_filters(self, lf: pl.LazyFrame, filters: dict) -> pl.LazyFrame:
+    def _apply_filters(
+        self, lf: pl.LazyFrame, filters: dict[str, Any]
+    ) -> pl.LazyFrame:
         for key, value in filters.items():
             if isinstance(value, list):
                 lf = lf.filter(pl.col(key).is_in(value))
@@ -164,19 +146,21 @@ class InputData:
                 lf = lf.filter(pl.col(key) == value)
         return lf
 
-    def _read_csv(self, filename: str, filters: dict) -> pl.DataFrame:
+    def _read_csv(self, filename: str, filters: dict[str, Any]) -> pl.DataFrame:
         file_path = self.storage.join_path(self.path, filename)
         lf = pl.scan_csv(file_path)
         lf = self._apply_filters(lf, filters)
         return lf.collect()
 
-    def _read_parquet(self, filename: str, filters: dict) -> pl.DataFrame:
+    def _read_parquet(
+        self, filename: str, filters: dict[str, Any]
+    ) -> pl.DataFrame:
         file_path = self.storage.join_path(self.path, filename)
         lf = self.storage.read_parquet(file_path)
         lf = self._apply_filters(lf, filters)
         return lf.collect()
 
-    def _read(self, filename: str, filters: dict) -> pl.DataFrame:
+    def _read(self, filename: str, filters: dict[str, Any]) -> pl.DataFrame:
         if filename.endswith(".csv"):
             return self._read_csv(filename, filters)
         elif filename.endswith(".parquet"):
@@ -184,9 +168,7 @@ class InputData:
         else:
             raise ValueError(f"Unsupported file format for file: {filename}")
 
-    def read_usinas(
-        self, ids_usinas: Optional[list[str]] = None
-    ) -> pl.DataFrame:
+    def read_usinas(self, ids_usinas: list[str] | None = None) -> pl.DataFrame:
         if ids_usinas is None:
             return self._read("usinas.csv", {})
         return self._read("usinas.csv", {"id_usina": ids_usinas})
@@ -224,11 +206,9 @@ class InputData:
         self,
         latitude: float,
         longitude: float,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        forecasting_day: Optional[int] = None,
-        apply_unit_conversions: bool = True,
-        calculate_derived_fields: bool = True,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        forecasting_day: int | None = None,
     ) -> LocationInputData:
         # Find nearest grid point
         grid_lat, grid_lon = self._find_nearest_point(latitude, longitude)
@@ -274,12 +254,8 @@ class InputData:
             forecasting_day=forecasting_day,
         )
 
-        # Apply post-processing steps
-        if apply_unit_conversions:
-            location_data.apply_unit_conversions()
-
-        if calculate_derived_fields:
-            location_data.calculate_derived_fields()
+        location_data.apply_unit_conversions()
+        location_data.calculate_derived_fields()
 
         # Upsample data to 10-minute intervals
         location_data = location_data.upsample_to_interval("10m")
@@ -296,10 +272,10 @@ class InputData:
         filename: str,
         latitude: float,
         longitude: float,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        forecasting_day: Optional[int] = None,
-    ) -> Optional[pl.DataFrame]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        forecasting_day: int | None = None,
+    ) -> pl.DataFrame | None:
         try:
             file_path = self.storage.join_path(self.path, filename)
             if not self.storage.exists(file_path):
@@ -333,7 +309,7 @@ class InputData:
         except InputContractError:
             raise
         except Exception as e:
-            print(f"Warning: Could not load {self.path}/{filename}: {e}")
+            logger.warning("Could not load %s/%s: %s", self.path, filename, e)
             return None
 
     def read_measured_for_plant(

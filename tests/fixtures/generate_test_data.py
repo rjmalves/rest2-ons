@@ -55,7 +55,8 @@ def generate_atmospheric_data(
     times = _hourly_times(start_date, num_days)
 
     print(
-        f"Generating {len(times)} time steps for {len(lats) * len(lons)} grid points"
+        f"Generating {len(times)} time steps "
+        f"for {len(lats) * len(lons)} grid points"
     )
 
     # Variable definitions with typical ranges
@@ -153,7 +154,7 @@ def generate_cod_data(
 
 def generate_measured_data(
     output_dir: Path,
-    plant_ids: list[str] = None,
+    plant_ids: list[str] | None = None,
     start_date: datetime = datetime(2024, 1, 1),
     num_days: int = 7,
 ) -> None:
@@ -208,7 +209,7 @@ def generate_measured_data(
 
 def generate_usinas_metadata(
     output_dir: Path,
-    plant_ids: list[str] = None,
+    plant_ids: list[str] | None = None,
 ) -> None:
     """
     Generate plant metadata file.
@@ -244,7 +245,7 @@ def generate_usinas_metadata(
     print(f"  usinas.csv: {len(rows)} plants")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate test fixtures for REST2-ONS tests"
     )

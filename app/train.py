@@ -1,6 +1,6 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import polars as pl
 
@@ -9,19 +9,21 @@ from app.readers import InputData
 from app.services.radiation import REST2, REST2Result
 from app.utils.data import get_plant_coordinates
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class TrainResult:
-    parameters: dict
+    parameters: dict[str, float]
     radiation: REST2Result
-    metrics: dict
+    metrics: dict[str, float]
     radiation_type: str
 
 
 @dataclass
 class EvaluationResult:
     radiation: REST2Result
-    metrics: dict
+    metrics: dict[str, float]
     radiation_type: str
 
 
@@ -33,10 +35,10 @@ class PlantResult:
 
 
 class TrainManager:
-    def __init__(self, config: Config, reader: InputData):
+    def __init__(self, config: Config, reader: InputData) -> None:
         self.config = config
         self.reader = reader
-        self._plants: Optional[pl.DataFrame] = None
+        self._plants: pl.DataFrame | None = None
 
     @property
     def plants(self) -> pl.DataFrame:
@@ -85,7 +87,7 @@ class TrainManager:
         lon: float,
         start: datetime,
         end: datetime,
-        parameters: dict,
+        parameters: dict[str, float],
     ) -> EvaluationResult:
         location_data = (
             self.reader.for_location(lat, lon)
@@ -110,7 +112,7 @@ class TrainManager:
         )
 
     def _train_for_plant(self, plant_id: str) -> PlantResult:
-        print(f"Training for plant ID: {plant_id}")
+        logger.info("Training for plant ID: %s", plant_id)
         lat, lon = get_plant_coordinates(self.plants, plant_id)
         training_window = self.config.time_windows.training
         train_start, train_end = training_window.start, training_window.end
@@ -121,7 +123,7 @@ class TrainManager:
         validation_window = self.config.time_windows.validation
         val_start, val_end = validation_window.start, validation_window.end
         if val_start and val_end:
-            print("Running validation...")
+            logger.info("Running validation...")
             validation_result = self._evaluate_rest2(
                 plant_id,
                 lat,
@@ -134,7 +136,7 @@ class TrainManager:
         test_window = self.config.time_windows.test
         test_start, test_end = test_window.start, test_window.end
         if test_start and test_end:
-            print("Running testing...")
+            logger.info("Running testing...")
             testing_result = self._evaluate_rest2(
                 plant_id,
                 lat,

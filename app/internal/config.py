@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 import pyjson5
 
@@ -41,7 +42,7 @@ class PostprocessingConfig:
     plots: bool
 
     @classmethod
-    def parse(cls, config: dict) -> "PostprocessingConfig":
+    def parse(cls, config: dict[str, Any]) -> "PostprocessingConfig":
         return cls(
             errors=config.get("errors", False),
             plots=config.get("plots", False),
@@ -61,7 +62,7 @@ class Config:
     target_radiation_type: str = "ghi"
 
     @classmethod
-    def parse(cls, config: dict) -> "Config":
+    def parse(cls, config: dict[str, Any]) -> "Config":
         return cls(
             mode=config["mode"],
             input=config["input"],
@@ -78,7 +79,7 @@ class Config:
 
     @classmethod
     def from_json(cls, json_path: str) -> "Config":
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             config = pyjson5.decode(f.read())
 
         return cls.parse(config)

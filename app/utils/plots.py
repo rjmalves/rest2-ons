@@ -1,9 +1,9 @@
 import pandas as pd
-import plotly.express as px  # type: ignore[import-untyped]
-import plotly.graph_objects as go  # type: ignore[import-untyped]
-import plotly.io as pio  # type: ignore[import-untyped]
+import plotly.express as px
+import plotly.graph_objects as go
+import plotly.io as pio
 import polars as pl
-from plotly.subplots import make_subplots  # type: ignore[import-untyped]
+from plotly.subplots import make_subplots
 
 from app.inference import PlantResult as PlantInferenceResult
 from app.internal.constants import (
@@ -98,7 +98,7 @@ def _join_predictions_with_measured_and_cod(
 
 
 def rest2_train_steps_scatter_plot(
-    df: pd.DataFrame, target_column: str, filepath: str
+    df: pd.DataFrame, target_column: str
 ) -> go.Figure:
     fig = px.scatter(
         df,
@@ -131,12 +131,11 @@ def rest2_train_steps_scatter_plot(
     )
     fig.update_xaxes(range=[0, df["measured"].max() * 1.05])
     fig.update_yaxes(range=[0, df["measured"].max() * 1.05])
-    fig.write_html(filepath)
     return fig
 
 
 def rest2_train_irradiances_scatter_plot(
-    df: pd.DataFrame, target_column: str, filepath: str
+    df: pd.DataFrame, target_column: str
 ) -> go.Figure:
     fig = px.scatter(
         df,
@@ -169,104 +168,13 @@ def rest2_train_irradiances_scatter_plot(
     )
     fig.update_xaxes(range=[0, df["measured"].max() * 1.05])
     fig.update_yaxes(range=[0, df["measured"].max() * 1.05])
-    fig.write_html(filepath)
-    return fig
-
-
-def rest2_train_timeseries_plot(
-    df: pd.DataFrame,
-    target_column: str,
-    filepath: str,
-):
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(
-        go.Scatter(
-            x=df.loc[df["step"] == "train", "time"],
-            y=df.loc[df["step"] == "train", target_column],
-            name="Train",
-            mode="lines",
-            line={"width": 2, "color": TRAIN_COLOR},
-        ),
-        secondary_y=False,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=df.loc[df["step"] == "validation", "time"],
-            y=df.loc[df["step"] == "validation", target_column],
-            name="Validation",
-            mode="lines",
-            line={"width": 2, "color": VALIDATION_COLOR},
-        ),
-        secondary_y=False,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=df.loc[df["step"] == "test", "time"],
-            y=df.loc[df["step"] == "test", target_column],
-            name="Test",
-            mode="lines",
-            line={"width": 2, "color": TEST_COLOR},
-        ),
-        secondary_y=False,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=df["time"],
-            y=df["measured"],
-            name="Measured",
-            mode="lines",
-            line={"width": 2, "color": MEASURED_COLOR},
-        ),
-        secondary_y=False,
-    )
-    fig.add_trace(
-        go.Bar(
-            x=df["time"],
-            y=df["cod"],
-            name="COD",
-            marker_color=COD_COLOR,
-        ),
-        secondary_y=True,
-    )
-
-    fig.update_layout(
-        title="REST2 and Measured Data",
-        xaxis_title="Time (UTC)",
-        yaxis_title="Irradiance (W/m²)",
-        legend_title_text="Step",
-    )
-    fig.update_yaxes(
-        title_text="Irradiance (W/m²)",
-        secondary_y=False,
-        range=[0, df["measured"].max() * 1.05],
-    )
-    fig.update_yaxes(title_text="COD", secondary_y=True, autorange="reversed")
-    fig.update_layout(
-        legend={
-            "orientation": "h",
-            "x": 0.5,
-            "y": -0.2,
-            "xanchor": "center",
-            "bgcolor": "rgba(255, 255, 255, 0.8)",
-        }
-    )
-    fig.update_layout(
-        grid={"rows": 1, "columns": 1},
-    )
-    fig.update_xaxes(
-        dtick="H1",
-        tickformat="%Y-%m-%d %H:%M",
-        tickangle=-45,
-    )
-    fig.write_html(filepath)
     return fig
 
 
 def rest2_train_steps_timeseries_plot(
     df: pd.DataFrame,
     target_column: str,
-    filepath: str,
-):
+) -> go.Figure:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
         go.Scatter(
@@ -347,15 +255,13 @@ def rest2_train_steps_timeseries_plot(
         tickformat="%Y-%m-%d %H:%M",
         tickangle=-45,
     )
-    fig.write_html(filepath)
     return fig
 
 
 def rest2_train_irradiances_timeseries_plot(
     df: pd.DataFrame,
     target_column: str,
-    filepath: str,
-):
+) -> go.Figure:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
         go.Scatter(
@@ -448,15 +354,13 @@ def rest2_train_irradiances_timeseries_plot(
         tickformat="%Y-%m-%d %H:%M",
         tickangle=-45,
     )
-    fig.write_html(filepath)
     return fig
 
 
 def rest2_inference_irradiances_timeseries_plot(
     df: pd.DataFrame,
     target_column: str,
-    filepath: str,
-):
+) -> go.Figure:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
         go.Scatter(
@@ -539,7 +443,6 @@ def rest2_inference_irradiances_timeseries_plot(
         tickformat="%Y-%m-%d %H:%M",
         tickangle=-45,
     )
-    fig.write_html(filepath)
     return fig
 
 
@@ -547,41 +450,41 @@ def train_evaluation_plots(
     result: PlantTrainResult,
     measured: pl.DataFrame,
     cod: pl.DataFrame,
-    filepath_prefix: str,
-):
+) -> dict[str, go.Figure]:
+    """Training-evaluation figures, keyed by their file-name suffix."""
     predictions_df = _plant_train_result_with_irradiances_to_df(result)
     target_column = result.train.radiation_type
     df = _join_predictions_with_measured_and_cod(
         predictions_df, measured.to_pandas(), cod.to_pandas()
     )
-    _ = rest2_train_steps_scatter_plot(
-        df, target_column, filepath_prefix + "_train_steps_scatter.html"
-    )
-    _ = rest2_train_irradiances_scatter_plot(
-        df, target_column, filepath_prefix + "_train_irradiances_scatter.html"
-    )
-    _ = rest2_train_steps_timeseries_plot(
-        df, target_column, filepath_prefix + "_train_steps_timeseries.html"
-    )
-    _ = rest2_train_irradiances_timeseries_plot(
-        df,
-        target_column,
-        filepath_prefix + "_train_irradiances_timeseries.html",
-    )
+    return {
+        "train_steps_scatter": rest2_train_steps_scatter_plot(
+            df, target_column
+        ),
+        "train_irradiances_scatter": rest2_train_irradiances_scatter_plot(
+            df, target_column
+        ),
+        "train_steps_timeseries": rest2_train_steps_timeseries_plot(
+            df, target_column
+        ),
+        "train_irradiances_timeseries": (
+            rest2_train_irradiances_timeseries_plot(df, target_column)
+        ),
+    }
 
 
 def inference_plots(
     result: PlantInferenceResult,
     cod: pl.DataFrame,
-    filepath_prefix: str,
-):
+) -> dict[str, go.Figure]:
+    """Inference figures, keyed by their file-name suffix."""
     predictions_df = _plant_inference_result_with_irradiances_to_df(result)
     target_column = result.radiation_type
     df = _join_predictions_with_measured_and_cod(
         predictions_df, None, cod.to_pandas()
     )
-    _ = rest2_inference_irradiances_timeseries_plot(
-        df,
-        target_column,
-        filepath_prefix + "_inference_irradiances_timeseries.html",
-    )
+    return {
+        "inference_irradiances_timeseries": (
+            rest2_inference_irradiances_timeseries_plot(df, target_column)
+        ),
+    }

@@ -3,7 +3,10 @@ import argparse
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="rest2-ons: Irradiance forecasting with measured in-site and satellite data"
+        description=(
+            "rest2-ons: Irradiance forecasting with measured in-site and "
+            "satellite data"
+        )
     )
     parser.add_argument(
         "--config",

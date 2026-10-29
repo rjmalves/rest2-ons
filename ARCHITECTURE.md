@@ -364,37 +364,23 @@ data/output/
 
 ## Dependências
 
+As dependências de execução e suas versões mínimas são declaradas em
+`[project].dependencies` do `pyproject.toml`; esta lista registra apenas o
+papel de cada uma.
+
 ```
-numpy (>= 2.3.2)
-├── Computação numérica
-└── Operações com arrays
-
-polars (>= 1.31.0)
-├── Carga e manipulação de dados
-└── Operações com DataFrame
-
-plotly (>= 6.2.0)
-└── Gráficos HTML interativos
-
-pyarrow (>= 21.0.0)
-└── I/O de arquivos Parquet
-
-pyjson5 (>= 2.0.0)
-└── Parsing de configuração JSONC
-
-statsmodels (>= 0.14.5)
-└── Funções estatísticas
-
-python-dotenv (>= 1.1.1)
-└── Carregamento de variáveis de ambiente
-
-boto3 (>= 1.35.0)
-├── Cliente AWS S3
-└── Operações com buckets S3
-
-s3fs (>= 2024.10.0)
-├── Interface filesystem S3
-└── Integração Polars/Pandas com S3
+numpy        Equações do REST2 e operações com arrays
+polars       Leitura, filtragem e junção das séries de entrada
+pandas       Escrita de Parquet e preparo dos dados dos gráficos
+pyarrow      Motor de Parquet usado pelo pandas
+scipy        Calibração dos parâmetros (L-BFGS-B)
+pytz         Conversão de UTC para a hora local na geometria solar
+pyjson5      Configuração JSONC e artefatos de parâmetros calibrados
+plotly       Gráficos HTML interativos
+statsmodels  Linha de tendência OLS dos gráficos de dispersão (plotly)
+boto3        Cliente S3
+botocore     Erros do cliente S3
+s3fs         Sistema de arquivos S3 para Polars e Pandas
 ```
 
 ## Considerações de Performance

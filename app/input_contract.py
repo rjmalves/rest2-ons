@@ -1,9 +1,9 @@
 """Declared input units and the plausibility check that enforces them.
 
 ``DECLARED_UNITS`` is the declaration: each input is in the unit its producer
-currently writes (program ADR-017), and rest2 does not re-convert it. The
-validator is independent of file layout: it takes an input name and a column
-of values, and knows nothing about files, paths or readers.
+currently writes, and rest2 does not re-convert it. The validator is
+independent of file layout: it takes an input name and a column of values,
+and knows nothing about files, paths or readers.
 """
 
 import logging

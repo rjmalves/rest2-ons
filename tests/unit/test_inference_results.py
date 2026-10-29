@@ -18,7 +18,7 @@ def _distinct_result() -> REST2Result:
     return REST2Result(*frames)
 
 
-def test_ghi_tracker_resolves_to_ghi_tracker_series():
+def test_ghi_tracker_resolves_to_ghi_tracker_series() -> None:
     result = _distinct_result()
 
     chosen = PlantResult(
@@ -29,7 +29,7 @@ def test_ghi_tracker_resolves_to_ghi_tracker_series():
 
 
 @pytest.mark.parametrize("radiation_type", ["ghi", "dni", "dhi"])
-def test_existing_types_resolve_unchanged(radiation_type: str):
+def test_existing_types_resolve_unchanged(radiation_type: str) -> None:
     result = _distinct_result()
 
     chosen = PlantResult(
@@ -39,7 +39,7 @@ def test_existing_types_resolve_unchanged(radiation_type: str):
     assert chosen is getattr(result, radiation_type)
 
 
-def test_unknown_type_raises_value_error():
+def test_unknown_type_raises_value_error() -> None:
     plant_result = PlantResult(
         radiation=_distinct_result(), radiation_type="xyz"
     )
@@ -48,7 +48,9 @@ def test_unknown_type_raises_value_error():
         plant_result.chosen_radiation()
 
 
-def test_write_inference_results_writes_ghi_tracker(sample_config: Config):
+def test_write_inference_results_writes_ghi_tracker(
+    sample_config: Config,
+) -> None:
     plant_result = PlantResult(
         radiation=_distinct_result(), radiation_type="ghi_tracker"
     )

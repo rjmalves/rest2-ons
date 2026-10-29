@@ -1,6 +1,6 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import polars as pl
 
@@ -8,6 +8,8 @@ from app.internal.config import Config
 from app.readers import InputData
 from app.services.radiation import REST2, REST2Result
 from app.utils.data import PlantArtifact, get_plant_coordinates
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -20,10 +22,10 @@ class PlantResult:
 
 
 class InferenceManager:
-    def __init__(self, config: Config, reader: InputData):
+    def __init__(self, config: Config, reader: InputData) -> None:
         self.config = config
         self.reader = reader
-        self._plants: Optional[pl.DataFrame] = None
+        self._plants: pl.DataFrame | None = None
 
     @property
     def plants(self) -> pl.DataFrame:
@@ -37,7 +39,7 @@ class InferenceManager:
         lon: float,
         start: datetime,
         end: datetime,
-        parameters: dict,
+        parameters: dict[str, float],
     ) -> PlantResult:
         location_data = (
             self.reader.for_location(lat, lon)
@@ -55,7 +57,7 @@ class InferenceManager:
     def _predict_for_plant(
         self, plant_id: str, artifact: PlantArtifact
     ) -> PlantResult:
-        print(f"Predicting for plant ID: {plant_id}")
+        logger.info("Predicting for plant ID: %s", plant_id)
         lat, lon = get_plant_coordinates(self.plants, plant_id)
         inference_window = self.config.time_windows.inference
         infer_start, infer_end = inference_window.start, inference_window.end

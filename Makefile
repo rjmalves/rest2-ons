@@ -1,4 +1,4 @@
-.PHONY: help install install-user uninstall uninstall-user reinstall test test-unit test-integration test-cov test-s3 lint format clean
+.PHONY: help install install-user uninstall uninstall-user reinstall test test-unit test-integration test-cov test-s3 lint format typecheck check clean
 
 help:
 	@echo "rest2-ons - Installation and Management"
@@ -20,6 +20,8 @@ help:
 	@echo "Code Quality:"
 	@echo "  make lint           - Run linter (ruff)"
 	@echo "  make format         - Format code with ruff"
+	@echo "  make typecheck      - Type-check with mypy --strict"
+	@echo "  make check          - Run every pre-commit gate (lint, format, types, docs)"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean          - Clean build artifacts and cache"
@@ -49,7 +51,7 @@ clean:
 	@rm -rf build/ dist/ *.egg-info
 	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	@rm -rf .pytest_cache .coverage htmlcov/ .ruff_cache
+	@rm -rf .pytest_cache .coverage coverage.xml htmlcov/ .ruff_cache .mypy_cache
 	@echo "Clean complete."
 
 test:
@@ -75,8 +77,15 @@ test-s3:
 
 lint:
 	@echo "Running linter..."
-	@.venv/bin/ruff check app/ tests/
+	@.venv/bin/ruff check .
 
 format:
 	@echo "Formatting code..."
-	@.venv/bin/ruff format app/ tests/
+	@.venv/bin/ruff format .
+
+typecheck:
+	@echo "Type-checking..."
+	@.venv/bin/mypy app main.py tests scripts/ci
+
+check:
+	@./scripts/pre-commit
