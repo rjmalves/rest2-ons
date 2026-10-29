@@ -153,9 +153,9 @@ As quatro janelas são exigidas nos dois modos. O treino ajusta os parâmetros
 em `training` e calcula as métricas também em `validation` e `test`; a
 inferência prevê a janela `inference`.
 
-Na inferência, use o mesmo `target_radiation_type` do treino. O tipo gravado
-no artefato não é conferido, e outro tipo aplica os parâmetros a outra
-grandeza sem aviso.
+Na inferência, `target_radiation_type` precisa ser o mesmo do treino: se o
+artefato de alguma usina registra outro tipo, o programa para com erro antes de
+prever.
 
 ### S3
 

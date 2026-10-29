@@ -68,6 +68,19 @@ class InferenceManager:
     def predict(
         self, artifacts: dict[str, PlantArtifact]
     ) -> dict[str, PlantResult]:
+        target = self.config.target_radiation_type
+        trained_on_another_type = {
+            plant_id: artifact.radiation_type
+            for plant_id, artifact in artifacts.items()
+            if artifact.radiation_type != target
+        }
+        if trained_on_another_type:
+            raise ValueError(
+                f"target_radiation_type is {target!r}, but these plants were "
+                f"trained on another radiation type: "
+                f"{trained_on_another_type}; set target_radiation_type to "
+                f"the training type or retrain them"
+            )
         results = {}
         for plant_id, artifact in artifacts.items():
             results[plant_id] = self._predict_for_plant(plant_id, artifact)

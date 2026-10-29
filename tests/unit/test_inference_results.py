@@ -4,9 +4,11 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from app.inference import PlantResult
+from app.inference import InferenceManager, PlantResult
 from app.internal.config import Config
+from app.readers import InputData
 from app.services.radiation import REST2Result
+from app.utils.data import PlantArtifact
 from app.writers import write_inference_results
 
 
@@ -59,3 +61,18 @@ def test_write_inference_results_writes_ghi_tracker(
 
     written = pl.read_parquet(Path(sample_config.output) / "TEST001.parquet")
     assert written["valor"].to_list() == [1.0]
+
+
+def test_predict_rejects_artifacts_trained_on_another_radiation_type(
+    sample_config: Config,
+) -> None:
+    fitted = {"mu0": 0.1, "g": 0.5}
+    artifacts = {
+        "TEST001": PlantArtifact(fitted, metrics={}, radiation_type="ghi"),
+        "TEST002": PlantArtifact(fitted, metrics={}, radiation_type="dni"),
+    }
+    manager = InferenceManager(sample_config, InputData(sample_config.input))
+
+    with pytest.raises(ValueError, match=r"'ghi'.*'TEST002': 'dni'") as error:
+        manager.predict(artifacts)
+    assert "TEST001" not in str(error.value)

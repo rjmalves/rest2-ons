@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rest2-ons --help` names the default config file, `config.jsonc`, instead of `config.json`
 - When several runs forecast the same valid time within `forecasting_day_ahead`, the latest run is used; which run was used depended on the row order of the input file
 - A missing forecast file, or one without the grid point taken from `albedo.parquet`, stops the run with an error naming the file; it failed with an unrelated `TypeError`
+- Inference stops with an error when a plant's artifact was trained on a radiation type other than `target_radiation_type`; it applied the parameters to the other type without a warning
 
 ---
 
