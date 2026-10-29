@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Optional
@@ -11,6 +12,8 @@ from app.internal.config import Config
 from app.storage import StorageFactory
 from app.utils.data import PlantArtifact
 from app.utils.utils import haversine_distance
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -333,7 +336,7 @@ class InputData:
         except InputContractError:
             raise
         except Exception as e:
-            print(f"Warning: Could not load {self.path}/{filename}: {e}")
+            logger.warning("Could not load %s/%s: %s", self.path, filename, e)
             return None
 
     def read_measured_for_plant(
