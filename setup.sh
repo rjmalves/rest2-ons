@@ -148,10 +148,6 @@ cp "$PROJECT_ROOT/main.py" "$INSTALL_DIR/"
 cp "$PROJECT_ROOT/pyproject.toml" "$INSTALL_DIR/"
 cp "$PROJECT_ROOT/README.md" "$INSTALL_DIR/" 2>/dev/null || true
 
-if [[ -f "$PROJECT_ROOT/.env.example" ]]; then
-	cp "$PROJECT_ROOT/.env.example" "$INSTALL_DIR/"
-fi
-
 # Create virtual environment in installation directory
 log "Creating virtual environment in $VENV_DIR"
 "$PYTHON_BIN" -m venv "$VENV_DIR"
@@ -165,12 +161,6 @@ python -m pip install --upgrade pip setuptools wheel >/dev/null 2>&1
 log "Installing $APP_NAME..."
 cd "$INSTALL_DIR"
 pip install . >/dev/null 2>&1
-
-# Create .env if needed
-if [[ ! -f "$INSTALL_DIR/.env" && -f "$INSTALL_DIR/.env.example" ]]; then
-	cp "$INSTALL_DIR/.env.example" "$INSTALL_DIR/.env"
-	log "Created .env file from .env.example"
-fi
 
 deactivate
 
