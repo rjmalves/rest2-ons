@@ -44,3 +44,22 @@ def test_setup_script_runs_past_mode_selection(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert "Uninstallation complete." in result.stdout, result.stderr
+
+
+def test_setup_script_refuses_an_existing_install_and_keeps_it(
+    tmp_path: Path,
+) -> None:
+    existing = tmp_path / ".local" / "rest2-ons"
+    existing.mkdir(parents=True)
+
+    result = subprocess.run(
+        [str(SETUP_SCRIPT), "--user"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "HOME": str(tmp_path)},
+    )
+
+    assert result.returncode == 1
+    assert f"already exists: {existing}\nUse --force" in result.stderr
+    assert existing.is_dir()

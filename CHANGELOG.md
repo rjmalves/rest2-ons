@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When several runs forecast the same valid time within `forecasting_day_ahead`, the latest run is used; which run was used depended on the row order of the input file
 - A missing forecast file, or one without the grid point taken from `albedo.parquet`, stops the run with an error naming the file; it failed with an unrelated `TypeError`
 - Inference stops with an error when a plant's artifact was trained on a radiation type other than `target_radiation_type`; it applied the parameters to the other type without a warning
+- `setup.sh` shows pip's output when the install fails, instead of exiting without a message, and removes the partial installation; the minimum Python version is enforced by pip from `pyproject.toml`
+- `setup.sh` error messages print their line breaks instead of a literal `\n`
 
 ---
 

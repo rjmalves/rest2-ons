@@ -56,8 +56,16 @@ EOF
 log() { [ "$QUIET" -eq 1 ] || echo -e "$*"; }
 
 error() {
-	echo "Error: $*" >&2
+	printf 'Error: %b\n' "$*" >&2
 	exit 1
+}
+
+run_quietly_or_show_output() {
+	local output
+	if ! output=$("$@" 2>&1); then
+		printf '%s\n' "$output" >&2
+		return 1
+	fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -115,16 +123,6 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
 	error "$PYTHON_BIN not found in PATH."
 fi
 
-# Ensure Python version >= 3.11
-PY_VERSION=$($PYTHON_BIN -c 'import sys; print("%d.%d"%sys.version_info[:2])')
-MIN_MAJOR=3
-MIN_MINOR=11
-CUR_MAJOR=${PY_VERSION%%.*}
-CUR_MINOR=${PY_VERSION#*.}
-if [[ $CUR_MAJOR -lt $MIN_MAJOR || ( $CUR_MAJOR -eq $MIN_MAJOR && $CUR_MINOR -lt $MIN_MINOR ) ]]; then
-	error "Python >= $MIN_MAJOR.$MIN_MINOR required (found $PY_VERSION)."
-fi
-
 VENV_DIR="$INSTALL_DIR/venv"
 
 # Handle existing installation
@@ -140,6 +138,8 @@ fi
 # Create installation directory
 log "Creating installation directory: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
+# Leave no half-built installation behind if a later step fails.
+trap 'rm -rf "$INSTALL_DIR"' EXIT
 
 # Copy application files to installation directory
 log "Copying application files..."
@@ -156,11 +156,14 @@ log "Creating virtual environment in $VENV_DIR"
 source "$VENV_DIR/bin/activate"
 
 log "Upgrading pip, setuptools, wheel..."
-python -m pip install --upgrade pip setuptools wheel >/dev/null 2>&1
+run_quietly_or_show_output python -m pip install --upgrade pip setuptools wheel ||
+	error "Upgrading pip failed; its output is above."
 
+# pip enforces requires-python from pyproject.toml, the one place it is set.
 log "Installing $APP_NAME..."
 cd "$INSTALL_DIR"
-pip install . >/dev/null 2>&1
+run_quietly_or_show_output pip install . ||
+	error "Installing $APP_NAME failed; pip's output is above."
 
 deactivate
 
@@ -183,6 +186,7 @@ if [[ $USE_SUDO -eq 1 ]]; then
 	chmod 755 "$SYMLINK_PATH"
 fi
 
+trap - EXIT
 log "\n✓ Installation complete!"
 
 # Check if bin directory is in PATH
