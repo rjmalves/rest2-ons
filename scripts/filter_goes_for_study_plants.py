@@ -35,12 +35,14 @@ def filter_data_to_study_plants(
             "valor",
         ]
     ]
-    df = df.sort_values([
-        "latitude",
-        "longitude",
-        "data_hora_rodada",
-        "data_hora_previsao",
-    ]).reset_index(drop=True)
+    df = df.sort_values(
+        [
+            "latitude",
+            "longitude",
+            "data_hora_rodada",
+            "data_hora_previsao",
+        ]
+    ).reset_index(drop=True)
     return df
 
 

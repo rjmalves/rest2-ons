@@ -118,6 +118,7 @@ def calcular_rmse(observado: np.ndarray, previsto: np.ndarray) -> float:
     """Calcula o erro médio absoluto."""
     return float(np.mean(np.abs(observado - previsto)))
 
+
 # ❌ Evitar: funções sem type hints
 def calcular_rmse(observado, previsto):
     return np.mean(np.abs(observado - previsto))
@@ -163,6 +164,7 @@ def processar_dados(df: pl.DataFrame, coluna: str) -> pl.DataFrame:
 # ✅ Bom: função pura
 def normalizar(valores: np.ndarray) -> np.ndarray:
     return (valores - valores.min()) / (valores.max() - valores.min())
+
 
 # ❌ Evitar: modificar entrada in-place sem documentar
 def normalizar(valores: np.ndarray) -> None:
@@ -228,6 +230,7 @@ Testes são categorizados usando markers do pytest:
 import pytest
 from app.readers import InputData
 
+
 class TestInputData:
     """Testa a classe InputData."""
 
@@ -264,6 +267,7 @@ def sample_atmospheric_data():
     """Cria dados atmosféricos sintéticos para testes."""
     # Retorna polars DataFrame com dados mock
     ...
+
 
 @pytest.fixture
 def mock_s3_bucket():

@@ -7,6 +7,7 @@ import numpy as np
 
 EARTH_RADIUS_KM = 6371.0
 
+
 def haversine_distance(
     lat_array: float, lon_array: float, lat: float, lon: float
 ) -> float:
@@ -27,7 +28,6 @@ def haversine_distance(
     return distance
 
 
-
 def nearest_point(data: xr.DataArray, lat: float, lon: float) -> float:
     points = np.array(
         data.stack(points=["latitude", "longitude"]).indexes["points"]
@@ -37,7 +37,6 @@ def nearest_point(data: xr.DataArray, lat: float, lon: float) -> float:
     distances = haversine_distance(lat_array, lon_array, lat, lon)
     index = np.argmin(distances)
     return lat_array[index], lon_array[index]
-
 
 
 class CAMSData:
@@ -297,12 +296,14 @@ def filter_data_to_study_plants(
         ).to_dataframe(name="valor")
         dfs.append(df.reset_index())
     df = pd.concat(dfs, ignore_index=True)
-    df = df.sort_values([
-        "latitude",
-        "longitude",
-        "data_hora_rodada",
-        "data_hora_previsao",
-    ]).reset_index(drop=True)
+    df = df.sort_values(
+        [
+            "latitude",
+            "longitude",
+            "data_hora_rodada",
+            "data_hora_previsao",
+        ]
+    ).reset_index(drop=True)
     return df
 
 
