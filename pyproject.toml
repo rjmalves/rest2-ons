@@ -85,4 +85,4 @@ ignore_missing_imports = true
 [tool.coverage.report]
 # A ratchet at the measured baseline: raise it when coverage rises, never
 # lower it to land a change.
-fail_under = 81
+fail_under = 94
