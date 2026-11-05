@@ -1,5 +1,6 @@
 # Locations (input, artifact) must be absolute paths or s3:// URIs.
 # Each window is half-open: start is included and end is excluded.
+# A local artifact root must exist before the run.
 
 plant_ids = ["BAFB11"]
 forecasting_day_ahead = 0

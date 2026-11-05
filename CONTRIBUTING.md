@@ -49,9 +49,13 @@ Obrigado pelo interesse em contribuir! Este documento fornece diretrizes para co
 
 ### Pré-requisitos
 
-- Python >= 3.11
-- [uv](https://github.com/astral-sh/uv) (gerenciador de pacotes recomendado)
-- Git
+- Python na faixa de `requires-python` do `pyproject.toml`
+- [uv](https://github.com/astral-sh/uv) na versão de `[tool.uv] required-version`
+  do `pyproject.toml` ou superior
+- Git, com acesso de leitura ao repositório do nwp-core no github.com
+
+Para instalar o programa como usuário, as rotas de instalação e os códigos de
+saída estão no [README.md](README.md).
 
 ### Setup Inicial
 
@@ -63,16 +67,13 @@ cd rest2-ons
 # Adicione o upstream
 git remote add upstream https://github.com/rjmalves/rest2-ons.git
 
-# Instale as dependências com uv
+# Instale as dependências
 uv sync
-
-# Ou com pip tradicional
-python -m venv .venv
-source .venv/bin/activate
-pip install -e . --group dev
 ```
 
-O `uv.lock` é versionado, então `uv sync` reproduz o ambiente do CI.
+O `uv sync` busca o nwp-core na sua fonte git, por isso exige o acesso de
+leitura dos pré-requisitos. O `uv.lock` é versionado, então `uv sync`
+reproduz o ambiente do CI.
 
 Instale o hook de pre-commit para rodar, antes de cada commit, os mesmos
 passos de lint, tipos e gates do CI:
@@ -113,12 +114,20 @@ uv run python scripts/ci/check_doc_paths.py           # todo caminho citado nos 
 uv run ruff format .                                  # formata o código
 ```
 
-O CI (`.github/workflows/ci.yml`) roda o ruff, a checagem de formatação e os
-gates de `scripts/ci/` uma vez, e a checagem de tipos e os testes em cada
-versão de Python suportada. Os testes falham abaixo do piso de cobertura definido em
-`pyproject.toml` (`[tool.coverage.report]`); suba o piso quando a cobertura
-subir, nunca o reduza para aprovar uma mudança. O `scripts/README.md` descreve
-cada gate e os relatórios consultivos ao lado deles.
+O CI tem dois workflows:
+
+- `.github/workflows/ci.yml` é a cópia do template do nwp-core e só muda no
+  ponto de edição `IMPORT_CHAIN`.
+- `.github/workflows/repo-checks.yml` traz as verificações deste repositório:
+  os gates de `scripts/ci/`, o `pytest --cov` em cada versão de Python
+  suportada com envio ao Codecov, o gate de `ci/gate/` com a lista de nomes
+  proibidos obrigatória, o diff da API, as listas de arquivos do pacote e a
+  instalação pelo `setup.sh`.
+
+Os testes falham abaixo do piso de cobertura definido em `pyproject.toml`
+(`[tool.coverage.report]`); suba o piso quando a cobertura subir, nunca o
+reduza para aprovar uma mudança. O `scripts/README.md` descreve cada gate e os
+relatórios consultivos ao lado deles.
 
 ### Convenções que o CI Aplica
 
@@ -149,6 +158,39 @@ código possa segui-los, e são a referência também para pessoas. Em resumo:
   importa por conta própria. Ferramentas de desenvolvimento vão no grupo de
   dependências `dev` (`[dependency-groups]`).
 
+### Cópias de template
+
+`.github/workflows/ci.yml`, `Dockerfile`, `.dockerignore` e os arquivos de
+`ci/` são cópias de templates do nwp-core. Cada cópia só muda no seu ponto de
+edição; qualquer outra mudança vem de uma nova cópia do template.
+
+A cada nova cópia, rode o verificador e coloque a saída no pull request:
+
+```bash
+uv run python scripts/ci/check_template_copies.py <checkout do nwp-core>
+```
+
+Ele compara cada cópia com o template da tag do nwp-core e sai com 0 quando
+todas conformam. Ele roda só localmente, nunca no CI, porque o CI não lê o
+repositório privado do nwp-core.
+
+### Dependabot
+
+O Dependabot (`.github/dependabot.yml`) abre pull requests só para os
+ecossistemas `github-actions` e `docker`. Uma execução do Dependabot não recebe
+os segredos do repositório, então o CI dela não prova a instalação nem o gate
+completo. Para verificar, um mantenedor envia um commit vazio à branch do
+Dependabot e faz o merge à mão:
+
+```bash
+git fetch origin <branch do dependabot>
+git checkout <branch do dependabot>
+git commit --allow-empty -m "chore: verifica o pull request do Dependabot"
+git push origin <branch do dependabot>
+```
+
+O `uv.lock` não tem atualização automática; atualize-o à mão.
+
 ### Boas Práticas Python
 
 Seguimos os princípios de código limpo e tipagem estática:
@@ -157,13 +199,13 @@ Seguimos os princípios de código limpo e tipagem estática:
 
 ```python
 # ✅ Bom: função com type hints completos
-def calcular_rmse(observado: np.ndarray, previsto: np.ndarray) -> float:
+def calcular_mae(observado: np.ndarray, previsto: np.ndarray) -> float:
     """Calcula o erro médio absoluto."""
     return float(np.mean(np.abs(observado - previsto)))
 
 
 # ❌ Evitar: funções sem type hints
-def calcular_rmse(observado, previsto):
+def calcular_mae(observado, previsto):
     return np.mean(np.abs(observado - previsto))
 ```
 
@@ -222,18 +264,17 @@ def normalizar(valores: np.ndarray) -> None:
 
 ```
 tests/
-├── __init__.py
-├── conftest.py              # Fixtures compartilhadas
-├── fixtures/
-│   ├── data/                # Arquivos de dados de teste
-│   └── generate_test_data.py  # Gerador de dados mock
-├── unit/
-│   ├── test_config.py       # Testes de configuração
-│   ├── test_readers.py      # Testes de leitura de dados
-│   └── test_storage.py      # Testes de backends de storage
-└── integration/
-    └── test_pipeline.py     # Testes de integração do pipeline
+├── conftest.py     # Fixtures e auxiliares compartilhados (local_storage)
+├── fixtures/       # Dados sintéticos de teste e o gerador deles
+├── unit/           # Componentes isolados e os scripts de scripts/ci/
+├── integration/    # Pipeline completo, backends de entrada e saída, golden
+└── surface/        # Snapshots JSON da superfície pública
 ```
+
+`tests/surface/` guarda os snapshots JSON dos esquemas de configuração, do
+artefato e do resumo da execução, e da superfície do CLI. Com
+`NWP_UPDATE_SNAPSHOTS=1`, o teste reescreve o snapshot e ainda assim falha,
+para que a mudança seja revisada no diff antes de entrar.
 
 ### Executando Testes
 
@@ -269,54 +310,60 @@ Testes são categorizados usando markers do pytest:
 
 ### Escrevendo Testes
 
+Leituras locais usam `local_storage(tmp_path)` de `tests/conftest.py`:
+
 ```python
-import pytest
+from datetime import UTC, datetime
+
+import polars as pl
+from nwp_core.config import TimeWindow
+
 from rest2_ons.readers import InputData
+from tests.conftest import local_storage
 
 
-class TestInputData:
-    """Testa a classe InputData."""
+def test_reads_measured_irradiance_of_one_plant(tmp_path):
+    """Lê só as linhas da usina pedida, dentro da janela."""
+    pl.DataFrame(
+        {
+            "id_usina": ["P1", "P1", "P2"],
+            "data_hora_observacao": [
+                datetime(2024, 1, 15, 12, 0),
+                datetime(2024, 1, 15, 12, 10),
+                datetime(2024, 1, 15, 12, 0),
+            ],
+            "valor": [500.0, 520.0, 300.0],
+        }
+    ).write_parquet(tmp_path / "measured_irradiance.parquet")
+    window = TimeWindow(
+        start=datetime(2024, 1, 15, 12, 0, tzinfo=UTC),
+        end=datetime(2024, 1, 15, 12, 20, tzinfo=UTC),
+    )
 
-    def test_initialization(self):
-        """Testa inicialização do InputData."""
-        reader = InputData("data/input")
-        assert reader.path == "data/input"
+    reader = InputData(local_storage(tmp_path))
+    result = reader.read_measured_for_plant("P1", window)
 
-    def test_initialization_with_s3(self):
-        """Testa inicialização do InputData com caminho S3."""
-        reader = InputData("s3://test-bucket/input")
-        assert reader.path == "s3://test-bucket/input"
-
-    @pytest.mark.integration
-    def test_reads_parquet_files(self, tmp_path, sample_atmospheric_data):
-        """Testa leitura de arquivos parquet (teste de integração)."""
-        # Write test data
-        test_file = tmp_path / "test.parquet"
-        sample_atmospheric_data.write_parquet(test_file)
-
-        reader = InputData(str(tmp_path))
-        result = reader._read("test.parquet", {})
-
-        assert len(result) == len(sample_atmospheric_data)
+    assert result["valor"].to_list() == [500.0, 520.0]
 ```
 
 ### Fixtures
 
-Fixtures comuns são definidas em `tests/conftest.py`:
+Fixtures comuns são definidas em `tests/conftest.py`. Os testes de S3 usam
+`isolate_aws_env` e `moto_location()` de `nwp_core._testing.storage`, com
+`@pytest.mark.s3`:
 
 ```python
-@pytest.fixture
-def sample_atmospheric_data():
-    """Cria dados atmosféricos sintéticos para testes."""
-    # Retorna polars DataFrame com dados mock
-    ...
+import pytest
+from nwp_core._testing.storage import isolate_aws_env, moto_location
+
+from rest2_ons.readers import InputData
 
 
-@pytest.fixture
-def mock_s3_bucket():
-    """Cria um bucket S3 mock usando moto."""
-    # Requer moto instalado
-    ...
+@pytest.mark.s3
+def test_reads_from_s3(monkeypatch, tmp_path):
+    isolate_aws_env(monkeypatch, tmp_path)
+    with moto_location() as location:
+        ...  # abra o local com open_storage e use-o como um Storage
 ```
 
 ### Requisitos de Cobertura
@@ -434,6 +481,17 @@ Seguimos [Semantic Versioning](https://semver.org/):
 - **PATCH**: correções de bugs compatíveis
 
 Atualize o `src/rest2_ons/_version.py` e `CHANGELOG.md` ao lançar versões; um teste confere que a versão do pacote é a última lançada no changelog.
+
+Uma mudança incompatível entra em `### Breaking` na seção `## [Unreleased]` do
+`CHANGELOG.md`. O `scripts/ci/check_api_diff.py` falha quando um nome sai de
+`rest2_ons.__all__` desde a última tag `v*` sem um item da forma
+``- `rest2_ons.<nome>` `` em `### Breaking`:
+
+```bash
+uv run python scripts/ci/check_api_diff.py
+```
+
+As tags são criadas por um mantenedor na `main`, depois do merge.
 
 ---
 
