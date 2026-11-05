@@ -2,7 +2,7 @@
 
 Obrigado pelo interesse em contribuir! Este documento fornece diretrizes para contribuições ao projeto.
 
-## 📋 Índice
+## Índice
 
 - [Como Contribuir](#como-contribuir)
 - [Configuração do Ambiente](#configuração-do-ambiente)
@@ -13,7 +13,7 @@ Obrigado pelo interesse em contribuir! Este documento fornece diretrizes para co
 
 ---
 
-## 🤝 Como Contribuir
+## Como Contribuir
 
 ### Reportando Bugs
 
@@ -45,7 +45,7 @@ Obrigado pelo interesse em contribuir! Este documento fornece diretrizes para co
 
 ---
 
-## 🛠️ Configuração do Ambiente
+## Configuração do Ambiente
 
 ### Pré-requisitos
 
@@ -96,7 +96,7 @@ make check      # Lint, formatação, tipos e gates (o mesmo que o hook)
 
 ---
 
-## 📐 Padrões de Código
+## Padrões de Código
 
 ### Estilo
 
@@ -261,7 +261,7 @@ def normalizar(valores: np.ndarray) -> None:
 
 ---
 
-## 🧪 Testes
+## Testes
 
 ### Estrutura de Testes
 
@@ -378,7 +378,7 @@ def test_reads_from_s3(monkeypatch, tmp_path):
 
 ---
 
-## 📝 Documentação
+## Documentação
 
 ### Docstrings
 
@@ -412,7 +412,7 @@ class REST2:
 
 ---
 
-## 🔄 Processo de Pull Request
+## Processo de Pull Request
 
 ### Antes de Abrir o PR
 
@@ -474,7 +474,7 @@ Closes #123
 
 ---
 
-## 🏷️ Versionamento
+## Versionamento
 
 Seguimos [Semantic Versioning](https://semver.org/):
 
@@ -497,7 +497,7 @@ As tags são criadas por um mantenedor na `main`, depois do merge.
 
 ---
 
-## ❓ Dúvidas?
+## Dúvidas?
 
 - Abra uma [Discussion](https://github.com/rjmalves/rest2-ons/discussions) para perguntas gerais
 - Use [Issues](https://github.com/rjmalves/rest2-ons/issues) para bugs e features

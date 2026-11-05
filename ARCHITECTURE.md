@@ -368,14 +368,10 @@ output/
 ### Adicionando Novo Tipo de Radiação
 
 1. Adicionar cálculo em `services/radiation.py`
-2. Atualizar enum `target_radiation_type` na config
+2. Adicionar o valor a `RadiationType` em `src/rest2_ons/_config.py`, que
+   tipa tanto `target_radiation_type` quanto o campo `radiation_type` do
+   artefato
 3. Adicionar tratamento de saída correspondente
-
-### Adicionando Novo Algoritmo de Otimização
-
-1. Criar novo otimizador em `training.py`
-2. Adicionar opção de configuração para seleção de otimizador
-3. Implementar interface comum para otimização de parâmetros
 
 ## Dependências
 
@@ -412,16 +408,11 @@ nwp-core      Armazenamento, configuração, CLI, execução, logs e métricas c
 
 ### Gargalos
 
-1. **Carga de Dados**: Arquivos Parquet grandes podem ser lentos
-   - Mitigação: Usar predicate pushdown, seleção de colunas
-2. **Iterações de Otimização**: L-BFGS-B pode requerer muitas iterações
-   - Mitigação: Bons valores iniciais, tolerância de convergência
-3. **Geração de Gráficos**: Grandes datasets criam arquivos HTML pesados
-   - Mitigação: Downsample para visualização
-
-### Otimizações Futuras
-
-- Processamento paralelo de usinas com multiprocessing
-- Avaliação lazy para transformações de dados
-- Cache de resultados intermediários
-- Processamento streaming para datasets muito grandes
+1. **Carga de Dados**: cada arquivo de entrada é lido inteiro na memória
+   (`Storage.open_read` seguido de `pl.read_parquet` ou `pl.read_csv`), dentro
+   do item de cada usina, e só depois filtrado pela usina e pela janela. O
+   custo cresce com o tamanho do arquivo, não com a janela pedida.
+2. **Iterações de Otimização**: o L-BFGS-B parte de `REST2.DEFAULT_PARAMETERS`
+   e usa as tolerâncias padrão do scipy.
+3. **Geração de Gráficos**: os gráficos HTML incluem todos os pontos da série,
+   então séries longas geram arquivos grandes.
