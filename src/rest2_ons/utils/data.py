@@ -3,6 +3,7 @@ from typing import Literal
 import polars as pl
 from pydantic import BaseModel, ConfigDict
 
+from rest2_ons._config import RadiationType
 from rest2_ons._errors import PlantNotFoundError
 
 
@@ -24,7 +25,7 @@ class PlantArtifact(BaseModel):
 
     parameters: _Parameters
     metrics: dict[Literal["train", "validation", "testing"], _Metrics | None]
-    radiation_type: str
+    radiation_type: RadiationType
 
 
 def get_plant_coordinates(

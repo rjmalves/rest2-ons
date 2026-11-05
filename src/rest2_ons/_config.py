@@ -16,6 +16,8 @@ from pydantic_core import PydanticCustomError
 from rest2_ons._errors import InvalidPlantIdError
 from rest2_ons._keys import check_plant_id
 
+RadiationType = Literal["ghi", "dni", "dhi", "ghi_tracker"]
+
 
 class _PlantConfig(ToolConfig):
     input: StorageLocation = Field(
@@ -29,7 +31,7 @@ class _PlantConfig(ToolConfig):
         OPERATIONAL,
         Field(description="Plants to process; unset processes every plant."),
     ] = None
-    target_radiation_type: Literal["ghi", "dni", "dhi", "ghi_tracker"] = Field(
+    target_radiation_type: RadiationType = Field(
         description="Radiation type the parameters are fitted and scored on."
     )
     forecasting_day_ahead: Annotated[

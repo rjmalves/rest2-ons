@@ -100,8 +100,16 @@ def test_extra_artifact_keys_are_ignored(tmp_path: Path) -> None:
         b"\x80{}",
         b'{"parameters": 1}',
         b'{"parameters": {"mu0": "canary"}}',
+        b'{"parameters": {"mu0": 0.2, "g": 0.7}, "metrics": {},'
+        b' "radiation_type": "canary"}',
     ],
-    ids=["not-json", "not-utf8", "wrong-shape", "bad-value"],
+    ids=[
+        "not-json",
+        "not-utf8",
+        "wrong-shape",
+        "bad-value",
+        "unknown-radiation-type",
+    ],
 )
 def test_malformed_artifact_raises_artifact_format_error(
     tmp_path: Path, body: bytes

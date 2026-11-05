@@ -60,6 +60,12 @@
       "$ref": "#/$defs/_Parameters"
     },
     "radiation_type": {
+      "enum": [
+        "ghi",
+        "dni",
+        "dhi",
+        "ghi_tracker"
+      ],
       "type": "string"
     }
   },
