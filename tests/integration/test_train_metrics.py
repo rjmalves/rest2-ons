@@ -9,7 +9,7 @@ import pytest
 from rest2_ons.readers import InputData
 from rest2_ons.services.radiation import REST2
 from rest2_ons.training import TrainManager
-from tests.conftest import WINDOW, train_config
+from tests.conftest import WINDOW, local_storage, train_config
 
 pytestmark = pytest.mark.integration
 
@@ -22,11 +22,11 @@ def test_in_sample_metrics_score_the_target_type(
         input={"uri": str(generated_input_dir)},
         target_radiation_type="ghi_tracker",
     )
-    result = TrainManager(config, InputData(config.input.uri)).train_plant(
-        "TEST001"
-    )
+    result = TrainManager(
+        config, InputData(local_storage(generated_input_dir))
+    ).train_plant("TEST001")
 
-    reader = InputData(str(generated_input_dir))
+    reader = InputData(local_storage(generated_input_dir))
     location_data = (
         reader.for_location(-22.5, -45.5)
         .time_range(WINDOW)

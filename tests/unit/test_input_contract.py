@@ -3,7 +3,7 @@ import logging
 import polars as pl
 import pytest
 
-from rest2_ons import input_contract
+from rest2_ons import Rest2Error, input_contract
 from rest2_ons.input_contract import (
     DECLARED_UNITS,
     PLAUSIBLE_RANGES,
@@ -124,5 +124,6 @@ def test_missing_plausibility_range_raises_contract_error(
 
 def test_contract_errors_are_value_errors() -> None:
     assert issubclass(InputContractError, ValueError)
+    assert issubclass(InputContractError, Rest2Error)
     assert issubclass(InputUnitMismatchError, InputContractError)
     assert issubclass(EmptyInputError, InputContractError)

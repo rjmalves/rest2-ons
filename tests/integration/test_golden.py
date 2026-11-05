@@ -25,7 +25,7 @@ from nwp_core.config import TimeWindow
 from rest2_ons.readers import InputData
 from rest2_ons.services.radiation import REST2
 from rest2_ons.training import TrainManager
-from tests.conftest import train_config
+from tests.conftest import local_storage, train_config
 from tests.fixtures.generate_test_data import (
     generate_atmospheric_data,
     generate_cod_data,
@@ -64,7 +64,7 @@ def build_golden_input_dir(directory: Path, radiation_type: str) -> None:
     generate_usinas_metadata(directory)
 
     location = (
-        InputData(str(directory))
+        InputData(local_storage(directory))
         .for_location(-22.5, -45.5)
         .time_range(WINDOW)
         .forecasting_day_filter(0)
@@ -94,7 +94,7 @@ def run_golden_fit(directory: Path, radiation_type: str) -> dict[str, float]:
         target_radiation_type=radiation_type,
     )
     train = (
-        TrainManager(config, InputData(config.input.uri))
+        TrainManager(config, InputData(local_storage(directory)))
         .train_plant("TEST001")
         .train
     )
@@ -107,7 +107,7 @@ def run_golden_fit(directory: Path, radiation_type: str) -> dict[str, float]:
 def test_calibration_window_reads_24_hourly_timestamps(tmp_path: Path) -> None:
     build_golden_input_dir(tmp_path, "ghi")
 
-    measured = InputData(str(tmp_path)).read_measured_for_plant(
+    measured = InputData(local_storage(tmp_path)).read_measured_for_plant(
         "TEST001", WINDOW
     )
 

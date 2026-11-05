@@ -1,4 +1,4 @@
-from collections.abc import Callable, Generator
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -7,6 +7,12 @@ import numpy as np
 import polars as pl
 import pytest
 from nwp_core.config import TimeWindow
+from nwp_core.storage import (
+    Storage,
+    StorageLocation,
+    StorageSettings,
+    open_storage,
+)
 
 from rest2_ons._config import InferConfig, TrainConfig
 from rest2_ons.readers import LocationInputData
@@ -22,6 +28,7 @@ WINDOW = TimeWindow(start=datetime(2024, 1, 1), end=datetime(2024, 1, 2))
 
 
 def _shared_fields(tmp_path: Path) -> dict[str, Any]:
+    (tmp_path / "artifacts").mkdir(exist_ok=True)
     return {
         "input": {"uri": str(tmp_path / "input")},
         "artifact": {"uri": str(tmp_path / "artifacts")},
@@ -34,7 +41,8 @@ def _shared_fields(tmp_path: Path) -> dict[str, Any]:
 def train_config(tmp_path: Path, **overrides: Any) -> TrainConfig:
     """A ``TrainConfig`` whose locations sit under ``tmp_path``.
 
-    ``overrides`` replace whole fields and are validated with the rest.
+    The artifact root exists, as a local root must before a run. ``overrides``
+    replace whole fields and are validated with the rest.
     """
     return TrainConfig.model_validate(
         {
@@ -48,7 +56,11 @@ def train_config(tmp_path: Path, **overrides: Any) -> TrainConfig:
 
 
 def infer_config(tmp_path: Path, **overrides: Any) -> InferConfig:
-    """An ``InferConfig`` whose locations sit under ``tmp_path``."""
+    """An ``InferConfig`` whose locations sit under ``tmp_path``.
+
+    The artifact and output roots exist, as a local root must before a run.
+    """
+    (tmp_path / "output").mkdir(exist_ok=True)
     return InferConfig.model_validate(
         {
             **_shared_fields(tmp_path),
@@ -57,6 +69,11 @@ def infer_config(tmp_path: Path, **overrides: Any) -> InferConfig:
             **overrides,
         }
     )
+
+
+def local_storage(path: Path) -> Storage:
+    """The ``Storage`` of the absolute local directory ``path``."""
+    return open_storage(StorageLocation(uri=str(path)), StorageSettings())
 
 
 @pytest.fixture(scope="session")
@@ -264,43 +281,3 @@ def truth_measured(
         )
 
     return build
-
-
-@pytest.fixture
-def mock_s3_bucket() -> Generator[str, None, None]:
-    """
-    Create a mock S3 bucket using moto.
-
-    Yields:
-        str: Bucket name for testing
-
-    Note:
-        This requires moto to be installed: pip install moto[s3]
-        Tests using this fixture should be marked with @pytest.mark.s3
-    """
-    try:
-        import boto3
-        from moto import mock_aws
-    except ImportError:
-        pytest.skip("moto not installed - skipping S3 tests")
-
-    # Start mock and keep it active during the test
-    mock = mock_aws()
-    mock.start()
-
-    try:
-        # Create mock S3 client
-        s3_client = boto3.client(
-            "s3",
-            region_name="us-east-1",
-            aws_access_key_id="testing",
-            aws_secret_access_key="testing",
-        )
-
-        # Create test bucket
-        bucket_name = "test-bucket"
-        s3_client.create_bucket(Bucket=bucket_name)
-
-        yield bucket_name
-    finally:
-        mock.stop()

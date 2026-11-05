@@ -6,6 +6,7 @@ import polars as pl
 import pytest
 from nwp_core.metrics.skill import mae, me, rmse
 
+from rest2_ons import NoTimeOverlapError
 from rest2_ons.readers import LocationInputData
 from rest2_ons.services.radiation import REST2
 
@@ -101,9 +102,9 @@ def test_zero_overlap_raises(
         pl.col("time") + pl.duration(days=2)
     )
 
-    with pytest.raises(ValueError, match="no overlapping timestamps"):
+    with pytest.raises(NoTimeOverlapError, match="no overlapping timestamps"):
         rest2.train(shifted, radiation_type="ghi")
 
     result = rest2.convert_radiation(PARAMETERS)
-    with pytest.raises(ValueError, match="no overlapping timestamps"):
+    with pytest.raises(NoTimeOverlapError, match="no overlapping timestamps"):
         rest2.evaluate(result, shifted, radiation_type="ghi")

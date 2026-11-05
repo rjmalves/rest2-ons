@@ -18,8 +18,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # that makes the library import the distribution.
 LAZILY_IMPORTED: dict[str, tuple[str, str]] = {
     "statsmodels": ("src/rest2_ons/utils/plots.py", 'trendline="ols"'),
-    # polars' DataFrame.to_pandas needs pyarrow too.
-    "pyarrow": ("src/rest2_ons/storage/local.py", ".to_parquet("),
+    # pandas' to_parquet(engine="pyarrow") imports it, as does polars'
+    # DataFrame.to_pandas.
+    "pyarrow": ("src/rest2_ons/writers.py", ".to_parquet("),
 }
 
 

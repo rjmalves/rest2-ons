@@ -10,6 +10,8 @@ import logging
 
 import polars as pl
 
+from rest2_ons._errors import Rest2Error
+
 DECLARED_UNITS: dict[str, str] = {
     "psurf": "hPa",
     "temp2m": "degC",
@@ -37,7 +39,7 @@ PLAUSIBLE_RANGES: dict[tuple[str, str], tuple[float, float]] = {
 TAIL_FRACTION = 0.01
 
 
-class InputContractError(ValueError):
+class InputContractError(Rest2Error, ValueError):
     """An input violates the declared input-unit contract."""
 
 
@@ -47,6 +49,10 @@ class InputUnitMismatchError(InputContractError):
 
 class EmptyInputError(InputContractError):
     """An input column has no non-null, non-NaN values to check."""
+
+
+class GridMismatchError(InputContractError):
+    """A CAMS file has no rows at the albedo grid point."""
 
 
 def _fmt(value: float) -> str:

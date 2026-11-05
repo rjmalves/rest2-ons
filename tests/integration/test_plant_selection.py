@@ -7,7 +7,7 @@ import pytest
 
 from rest2_ons import infer, train
 from rest2_ons.readers import InputData
-from tests.conftest import infer_config, train_config
+from tests.conftest import infer_config, local_storage, train_config
 
 pytestmark = pytest.mark.integration
 
@@ -64,6 +64,6 @@ def test_listed_plant_ids_train_only_those(
 def test_listed_plant_ids_are_not_filtered_against_usinas_csv(
     generated_input_dir: Path,
 ) -> None:
-    reader = InputData(str(generated_input_dir))
+    reader = InputData(local_storage(generated_input_dir))
 
     assert reader.plant_ids(["NOT_IN_USINAS"]) == ["NOT_IN_USINAS"]

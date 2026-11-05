@@ -1,15 +1,18 @@
+import io
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
 import polars as pl
-import pyjson5
 from nwp_core.config import TimeWindow
+from nwp_core.storage import Storage
+from pydantic import ValidationError
 
-from rest2_ons._config import InferConfig
-from rest2_ons.input_contract import validate_input_units
-from rest2_ons.storage import StorageFactory
+from rest2_ons._errors import ArtifactFormatError
+from rest2_ons._keys import artifact_key
+from rest2_ons.input_contract import GridMismatchError, validate_input_units
 from rest2_ons.utils.data import PlantArtifact
 from rest2_ons.utils.utils import haversine_distance
 
@@ -151,33 +154,32 @@ class LocationDataBuilder:
 
 
 class InputData:
-    def __init__(self, path: str):
-        self.path = path
-        self.storage = StorageFactory.get_storage(path)
+    def __init__(self, storage: Storage):
+        self.storage = storage
+
+    def _read_bytes(self, key: str) -> bytes:
+        with self.storage.open_read(key) as stream:
+            return stream.read()
 
     def _apply_filters(
-        self, lf: pl.LazyFrame, filters: dict[str, Any]
-    ) -> pl.LazyFrame:
+        self, df: pl.DataFrame, filters: dict[str, Any]
+    ) -> pl.DataFrame:
         for key, value in filters.items():
             if isinstance(value, list):
-                lf = lf.filter(pl.col(key).is_in(value))
+                df = df.filter(pl.col(key).is_in(value))
             else:
-                lf = lf.filter(pl.col(key) == value)
-        return lf
+                df = df.filter(pl.col(key) == value)
+        return df
 
     def _read_csv(self, filename: str, filters: dict[str, Any]) -> pl.DataFrame:
-        file_path = self.storage.join_path(self.path, filename)
-        lf = pl.scan_csv(file_path)
-        lf = self._apply_filters(lf, filters)
-        return lf.collect()
+        df = pl.read_csv(io.BytesIO(self._read_bytes(filename)))
+        return self._apply_filters(df, filters)
 
     def _read_parquet(
         self, filename: str, filters: dict[str, Any]
     ) -> pl.DataFrame:
-        file_path = self.storage.join_path(self.path, filename)
-        lf = self.storage.read_parquet(file_path)
-        lf = self._apply_filters(lf, filters)
-        return lf.collect()
+        df = pl.read_parquet(io.BytesIO(self._read_bytes(filename)))
+        return self._apply_filters(df, filters)
 
     def _read(self, filename: str, filters: dict[str, Any]) -> pl.DataFrame:
         if filename.endswith(".csv"):
@@ -208,8 +210,7 @@ class InputData:
         reference_file: str = "albedo.parquet",
     ) -> tuple[float, float]:
         """Find the nearest grid point to target coordinates."""
-        file_path = self.storage.join_path(self.path, reference_file)
-        df = self.storage.read_parquet(file_path).collect()
+        df = self._read_parquet(reference_file, {})
         coords = df.select(["latitude", "longitude"]).unique()
         distances = [
             (haversine_distance(target_lat, target_lon, lat, lon), lat, lon)
@@ -234,13 +235,11 @@ class InputData:
         missing = [
             filename
             for filename in FORECAST_FILES.values()
-            if not self.storage.exists(
-                self.storage.join_path(self.path, filename)
-            )
+            if self.storage.stat(filename) is None
         ]
         if missing:
             raise FileNotFoundError(
-                f"missing input files in {self.path}: {', '.join(missing)}"
+                f"missing input files: {', '.join(missing)}"
             )
 
         grid_lat, grid_lon = self._find_nearest_point(latitude, longitude)
@@ -285,16 +284,15 @@ class InputData:
         end_date: datetime | None = None,
         forecasting_day: int | None = None,
     ) -> pl.DataFrame:
-        file_path = self.storage.join_path(self.path, filename)
-        df = self.storage.read_parquet(file_path).collect()
+        df = self._read_parquet(filename, {})
         validate_input_units(input_name, df["valor"])
         df = df.filter(
             (pl.col("latitude") == latitude)
             & (pl.col("longitude") == longitude)
         )
         if df.height == 0:
-            raise ValueError(
-                f"{file_path} has no rows at grid point ({latitude}, "
+            raise GridMismatchError(
+                f"{filename} has no rows at grid point ({latitude}, "
                 f"{longitude}); every CAMS file must share the grid of "
                 f"albedo.parquet"
             )
@@ -364,13 +362,19 @@ class InputData:
         )
 
 
-def read_plant_artifact(config: InferConfig, plant_id: str) -> PlantArtifact:
-    storage = StorageFactory.get_storage(config.artifact.uri)
-    artifact_path = storage.join_path(config.artifact.uri, f"{plant_id}.json")
-    data = storage.read_bytes(artifact_path).decode("utf-8")
-    artifact_dict = pyjson5.decode(data)
-    return PlantArtifact(
-        parameters=artifact_dict["parameters"],
-        metrics=artifact_dict["metrics"],
-        radiation_type=artifact_dict["radiation_type"],
-    )
+def read_plant_artifact(storage: Storage, plant_id: str) -> PlantArtifact:
+    """Read the artifact of ``plant_id``.
+
+    Raises:
+        ArtifactFormatError: the stored bytes are not a valid artifact; the
+            message names the key and never the bytes.
+    """
+    key = artifact_key(plant_id)
+    with storage.open_read(key) as stream:
+        data = stream.read()
+    try:
+        return PlantArtifact.model_validate(json.loads(data))
+    except (json.JSONDecodeError, ValidationError):
+        raise ArtifactFormatError(
+            f"artifact {key} is not a valid rest2 artifact"
+        ) from None

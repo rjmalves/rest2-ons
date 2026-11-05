@@ -59,5 +59,5 @@ class InferenceManager:
         logger.info("Predicting for plant ID: %s", plant_id)
         lat, lon = get_plant_coordinates(self.plants, plant_id)
         return self._predict_rest2(
-            lat, lon, self.config.window, artifact.parameters
+            lat, lon, self.config.window, artifact.parameters.model_dump()
         )

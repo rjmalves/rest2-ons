@@ -1,0 +1,1 @@
+{"parameters":{"mu0":0.20142024493518343,"g":0.7001660063458379},"metrics":{"train":{"ME":2.0618856712556286,"MAE":6.070548736004769,"RMSE":8.45515104659463},"validation":{"ME":NaN,"MAE":1.5,"RMSE":2.5},"testing":null},"radiation_type":"ghi"}

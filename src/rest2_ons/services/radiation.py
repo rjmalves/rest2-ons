@@ -6,6 +6,7 @@ import polars as pl
 from nwp_core.metrics.skill import mae, me, rmse
 from scipy.optimize import minimize
 
+from rest2_ons._errors import NoTimeOverlapError
 from rest2_ons.readers import LocationInputData
 from rest2_ons.utils.utils import extraterrestrial_radiation
 
@@ -136,7 +137,7 @@ def _align_on_time(
         .sort("time")
     )
     if joined.height == 0:
-        raise ValueError(
+        raise NoTimeOverlapError(
             "no overlapping timestamps between measured and modeled radiation"
         )
     return joined["measured"].to_numpy(), joined["modeled"].to_numpy()

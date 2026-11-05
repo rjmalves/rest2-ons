@@ -6,6 +6,7 @@ import pytest
 from nwp_core.config import TimeWindow
 
 from rest2_ons.readers import InputData, _naive_utc
+from tests.conftest import local_storage
 
 pytestmark = pytest.mark.unit
 
@@ -41,7 +42,7 @@ def test_field_filter_is_half_open(tmp_path: Path) -> None:
         }
     ).write_parquet(tmp_path / "albedo.parquet")
 
-    kept = InputData(str(tmp_path))._load_and_filter_field(
+    kept = InputData(local_storage(tmp_path))._load_and_filter_field(
         "albedo", "albedo.parquet", LATITUDE, LONGITUDE, START, END
     )
 
@@ -57,7 +58,7 @@ def test_measured_filter_is_half_open(tmp_path: Path) -> None:
         }
     ).write_parquet(tmp_path / "measured_irradiance.parquet")
 
-    kept = InputData(str(tmp_path)).read_measured_for_plant(
+    kept = InputData(local_storage(tmp_path)).read_measured_for_plant(
         "P1", TimeWindow(start=START, end=END)
     )
 

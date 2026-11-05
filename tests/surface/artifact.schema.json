@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "_Metrics": {
+      "properties": {
+        "MAE": {
+          "type": "number"
+        },
+        "ME": {
+          "type": "number"
+        },
+        "RMSE": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "ME",
+        "MAE",
+        "RMSE"
+      ],
+      "type": "object"
+    },
+    "_Parameters": {
+      "properties": {
+        "g": {
+          "type": "number"
+        },
+        "mu0": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "mu0",
+        "g"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "metrics": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/_Metrics"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "propertyNames": {
+        "enum": [
+          "train",
+          "validation",
+          "testing"
+        ]
+      },
+      "type": "object"
+    },
+    "parameters": {
+      "$ref": "#/$defs/_Parameters"
+    },
+    "radiation_type": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "parameters",
+    "metrics",
+    "radiation_type"
+  ],
+  "type": "object"
+}

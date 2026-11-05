@@ -12,7 +12,7 @@ from rest2_ons import infer
 from rest2_ons.inference import PlantResult
 from rest2_ons.services.radiation import REST2Result
 from rest2_ons.writers import write_plant_output
-from tests.conftest import infer_config
+from tests.conftest import infer_config, local_storage
 
 
 def _distinct_result() -> REST2Result:
@@ -54,14 +54,13 @@ def test_unknown_type_raises_value_error() -> None:
 
 
 def test_write_plant_output_writes_ghi_tracker(tmp_path: Path) -> None:
-    config = infer_config(tmp_path)
     plant_result = PlantResult(
         radiation=_distinct_result(), radiation_type="ghi_tracker"
     )
 
-    write_plant_output(config, "TEST001", plant_result)
+    write_plant_output(local_storage(tmp_path), "TEST001", plant_result)
 
-    written = pl.read_parquet(Path(config.output.uri) / "TEST001.parquet")
+    written = pl.read_parquet(tmp_path / "TEST001.parquet")
     assert written["valor"].to_list() == [1.0]
 
 
@@ -75,7 +74,6 @@ def test_infer_rejects_artifacts_trained_on_another_radiation_type(
     )
     fitted = {"mu0": 0.1, "g": 0.5}
     artifact_dir = Path(config.artifact.uri)
-    artifact_dir.mkdir()
     for plant_id, radiation_type in {
         "TEST001": "ghi",
         "TEST002": "dni",
@@ -97,7 +95,7 @@ def test_infer_rejects_artifacts_trained_on_another_radiation_type(
         i for i in error.value.outcome.items if i.status == ItemStatus.FAILED
     ]
     assert [i.item_id for i in failed] == ["TEST002"]
-    assert failed[0].error_type == "ValueError"
+    assert failed[0].error_type == "RadiationTypeMismatchError"
     message = failed[0].error_message or ""
-    assert re.search(r"'ghi'.*'TEST002'.*'dni'", message)
+    assert re.search(r"'TEST002'.*'dni'.*'ghi'", message)
     assert "TEST001" not in message

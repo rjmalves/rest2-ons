@@ -5,8 +5,9 @@ import polars as pl
 import pytest
 from nwp_core.config import TimeWindow
 
-from rest2_ons.input_contract import InputUnitMismatchError
+from rest2_ons.input_contract import GridMismatchError, InputUnitMismatchError
 from rest2_ons.readers import InputData, LocationDataBuilder, LocationInputData
+from tests.conftest import local_storage
 
 
 class TestLocationInputData:
@@ -78,55 +79,47 @@ class TestLocationInputData:
 class TestInputData:
     """Test InputData reader."""
 
-    def test_initialization(self) -> None:
-        """Test InputData initialization."""
-        reader = InputData("data/input")
-        assert reader.path == "data/input"
-        assert reader.storage is not None
+    def test_initialization(self, tmp_path: Path) -> None:
+        """Test InputData keeps the Storage it is given."""
+        storage = local_storage(tmp_path)
 
-    def test_initialization_with_s3(self) -> None:
-        """Test InputData initialization with S3 path."""
-        reader = InputData("s3://test-bucket/input")
-        assert reader.path == "s3://test-bucket/input"
-        assert reader.storage is not None
+        assert InputData(storage).storage is storage
 
-    def test_apply_filters_single_value(self) -> None:
+    def test_apply_filters_single_value(self, tmp_path: Path) -> None:
         """Test filtering with single value."""
-        reader = InputData("data/input")
+        reader = InputData(local_storage(tmp_path))
 
-        lf = pl.LazyFrame(
+        df = pl.DataFrame(
             {
                 "id": ["A", "B", "C"],
                 "value": [1, 2, 3],
             }
         )
 
-        filtered = reader._apply_filters(lf, {"id": "B"})
-        result = filtered.collect()
+        result = reader._apply_filters(df, {"id": "B"})
 
         assert len(result) == 1
         assert result["id"][0] == "B"
 
-    def test_apply_filters_list_value(self) -> None:
+    def test_apply_filters_list_value(self, tmp_path: Path) -> None:
         """Test filtering with list of values."""
-        reader = InputData("data/input")
+        reader = InputData(local_storage(tmp_path))
 
-        lf = pl.LazyFrame(
+        df = pl.DataFrame(
             {
                 "id": ["A", "B", "C", "D"],
                 "value": [1, 2, 3, 4],
             }
         )
 
-        filtered = reader._apply_filters(lf, {"id": ["A", "C"]})
-        result = filtered.collect()
+        result = reader._apply_filters(df, {"id": ["A", "C"]})
 
         assert len(result) == 2
         assert set(result["id"].to_list()) == {"A", "C"}
 
-    def test_for_location_returns_builder(self) -> None:
+    def test_for_location_returns_builder(self, tmp_path: Path) -> None:
         """Test that for_location returns a builder."""
-        reader = InputData("data/input")
+        reader = InputData(local_storage(tmp_path))
         builder = reader.for_location(-22.5, -45.5)
 
         assert isinstance(builder, LocationDataBuilder)
@@ -197,9 +190,9 @@ class TestInputData:
 class TestLocationDataBuilder:
     """Test LocationDataBuilder."""
 
-    def test_builder_chain(self) -> None:
+    def test_builder_chain(self, tmp_path: Path) -> None:
         """Test builder method chaining."""
-        reader = InputData("data/input")
+        reader = InputData(local_storage(tmp_path))
         builder = (
             reader.for_location(-22.5, -45.5)
             .time_range(
@@ -249,7 +242,7 @@ class TestReadBoundaryUnits:
     def test_pa_pressure_fails_at_read_boundary(self, tmp_path: Path) -> None:
         _write_input_files(tmp_path, psurf_value=101325.0)
 
-        builder = InputData(str(tmp_path)).for_location(-22.5, -45.5)
+        builder = InputData(local_storage(tmp_path)).for_location(-22.5, -45.5)
 
         with pytest.raises(InputUnitMismatchError, match=r"psurf.*hPa"):
             builder.forecasting_day_filter(0).build()
@@ -258,7 +251,7 @@ class TestReadBoundaryUnits:
         _write_input_files(tmp_path, psurf_value=1013.25)
 
         location_data = (
-            InputData(str(tmp_path))
+            InputData(local_storage(tmp_path))
             .for_location(-22.5, -45.5)
             .forecasting_day_filter(0)
             .build()
@@ -277,12 +270,14 @@ class TestMissingForecastInputs:
         (tmp_path / "no2.parquet").unlink()
         (tmp_path / "temp.parquet").unlink()
 
-        builder = InputData(str(tmp_path)).for_location(-22.5, -45.5)
+        builder = InputData(local_storage(tmp_path)).for_location(-22.5, -45.5)
 
         with pytest.raises(
             FileNotFoundError, match=r"no2\.parquet, temp\.parquet"
-        ):
+        ) as excinfo:
             builder.forecasting_day_filter(0).build()
+
+        assert str(tmp_path) not in str(excinfo.value)
 
     def test_file_off_the_albedo_grid_is_named(self, tmp_path: Path) -> None:
         _write_input_files(tmp_path, psurf_value=1013.25)
@@ -291,10 +286,14 @@ class TestMissingForecastInputs:
             pl.lit(-23.0).alias("latitude")
         ).write_parquet(o3_path)
 
-        builder = InputData(str(tmp_path)).for_location(-22.5, -45.5)
+        builder = InputData(local_storage(tmp_path)).for_location(-22.5, -45.5)
 
-        with pytest.raises(ValueError, match=r"o3\.parquet.*albedo\.parquet"):
+        with pytest.raises(
+            GridMismatchError, match=r"o3\.parquet.*albedo\.parquet"
+        ) as excinfo:
             builder.forecasting_day_filter(0).build()
+
+        assert str(tmp_path) not in str(excinfo.value)
 
 
 @pytest.mark.unit
@@ -309,7 +308,7 @@ class TestReadersDataFlow:
         test_file = tmp_path / "test.parquet"
         sample_atmospheric_data.write_parquet(test_file)
 
-        reader = InputData(str(tmp_path))
+        reader = InputData(local_storage(tmp_path))
         result = reader._read("test.parquet", {})
 
         assert len(result) == len(sample_atmospheric_data)
@@ -325,14 +324,14 @@ class TestReadersDataFlow:
         test_file = tmp_path / "test.csv"
         test_df.write_csv(test_file)
 
-        reader = InputData(str(tmp_path))
+        reader = InputData(local_storage(tmp_path))
         result = reader._read("test.csv", {})
 
         assert len(result) == 3
 
-    def test_read_method_unsupported_format(self) -> None:
+    def test_read_method_unsupported_format(self, tmp_path: Path) -> None:
         """Test _read method with unsupported format raises error."""
-        reader = InputData("data/input")
+        reader = InputData(local_storage(tmp_path))
 
         with pytest.raises(ValueError, match="Unsupported file format"):
             reader._read("test.xlsx", {})

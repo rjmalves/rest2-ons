@@ -1,3 +1,4 @@
+import json
 import shutil
 import sys
 from datetime import UTC, datetime
@@ -22,28 +23,42 @@ def rest2(*args: str, env: dict[str, str] | None = None) -> ToolRun:
     )
 
 
-def _shared(tmp_path: Path, input_uri: str) -> str:
+def _shared(
+    tmp_path: Path,
+    input_uri: str,
+    plant_ids: tuple[str, ...] | None = ("TEST001",),
+) -> str:
+    (tmp_path / "artifacts").mkdir(exist_ok=True)
+    listed = (
+        "" if plant_ids is None else f"plant_ids = {json.dumps(plant_ids)}\n"
+    )
     return (
-        'plant_ids = ["TEST001"]\n'
-        'target_radiation_type = "ghi"\n'
+        listed + 'target_radiation_type = "ghi"\n'
         "forecasting_day_ahead = 0\n"
         f'[input]\nuri = "{input_uri}"\n'
         f'[artifact]\nuri = "{tmp_path / "artifacts"}"\n'
     )
 
 
-def train_toml(tmp_path: Path, input_uri: str) -> Path:
+def train_toml(
+    tmp_path: Path,
+    input_uri: str,
+    plant_ids: tuple[str, ...] | None = ("TEST001",),
+) -> Path:
     path = tmp_path / "train.toml"
     windows = "".join(
         f"[{name}]\n{_WINDOW}"
         for name in ("training_window", "validation_window", "test_window")
     )
-    path.write_text(_shared(tmp_path, input_uri) + windows, encoding="utf-8")
+    path.write_text(
+        _shared(tmp_path, input_uri, plant_ids) + windows, encoding="utf-8"
+    )
     return path
 
 
 def infer_toml(tmp_path: Path, input_uri: str) -> Path:
     path = tmp_path / "infer.toml"
+    (tmp_path / "output").mkdir(exist_ok=True)
     output = f'[output]\nuri = "{tmp_path / "output"}"\n'
     path.write_text(_shared(tmp_path, input_uri) + output, encoding="utf-8")
     return path
@@ -171,3 +186,56 @@ def test_config_file_comes_from_the_environment_without_the_flag(
     code = run.code
     assert code == 0
     assert run.summary is not None
+
+
+def test_a_failing_plant_exits_3_and_leaves_the_others_written(
+    generated_input_dir: Path, tmp_path: Path
+) -> None:
+    config = train_toml(
+        tmp_path,
+        str(generated_input_dir),
+        plant_ids=("TEST001", "NOT_IN_USINAS"),
+    )
+
+    run = rest2("train", "--config", str(config))
+
+    code = run.code
+    assert code == 3
+    assert run.summary is not None
+    assert len(run.stdout.splitlines()) == 1
+    items = {item.id: item for item in run.summary.items}
+    assert items["TEST001"].status == "succeeded"
+    assert items["NOT_IN_USINAS"].status == "failed"
+    assert items["NOT_IN_USINAS"].reason == "PlantNotFoundError"
+    assert (tmp_path / "artifacts" / "TEST001.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("usinas", "error_type"),
+    [
+        (None, "MissingPlantsFileError"),
+        (
+            "plant,latitude,longitude\nTEST001,-22.5,-45.5\n",
+            "PlantsFileFormatError",
+        ),
+    ],
+    ids=["missing", "malformed"],
+)
+def test_an_unusable_plants_file_exits_2_with_run_fatal(
+    tmp_path: Path, usinas: str | None, error_type: str
+) -> None:
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    if usinas is not None:
+        (input_dir / "usinas.csv").write_text(usinas, encoding="utf-8")
+    config = train_toml(tmp_path, str(input_dir), plant_ids=None)
+
+    run = rest2("train", "--config", str(config))
+
+    code = run.code
+    assert code == 2
+    assert run.stdout == ""
+    fatal = [event for event in run.events if event["event"] == "run.fatal"]
+    assert len(fatal) == 1
+    assert fatal[0]["error_type"] == error_type
+    assert list((tmp_path / "artifacts").iterdir()) == []

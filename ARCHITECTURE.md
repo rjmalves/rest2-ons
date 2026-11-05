@@ -202,48 +202,9 @@ Funções utilitárias reutilizáveis.
 | `data.py`       | Estruturas de dados e funções auxiliares      |
 | `utils.py`      | Geometria solar e conversões                  |
 
-### 8. Abstração de Storage (`src/rest2_ons/storage/`)
+### 8. Storage (`nwp_core.storage`)
 
-Fornece uma interface unificada para operações de arquivo entre filesystem local e AWS S3.
-
-| Módulo       | Descrição                                        |
-| ------------ | ------------------------------------------------ |
-| `base.py`    | Interface abstrata `StorageBackend`              |
-| `local.py`   | Implementação para filesystem local              |
-| `s3.py`      | Implementação AWS S3 usando boto3/s3fs           |
-| `factory.py` | `StorageFactory` para seleção automática de backend |
-
-#### Arquitetura de Storage
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     StorageFactory                          │
-│  get_storage(path) → StorageBackend                        │
-└───────────────────┬─────────────────────────────────────────┘
-                    │
-        ┌───────────┴───────────┐
-        │                       │
-        ▼                       ▼
-┌───────────────────┐   ┌───────────────────┐
-│   LocalBackend    │   │    S3Backend      │
-│   (path: /...)    │   │   (path: s3://...)│
-├───────────────────┤   ├───────────────────┤
-│ read_parquet()    │   │ read_parquet()    │
-│ write_parquet()   │   │ write_parquet()   │
-│ read_bytes()      │   │ read_bytes()      │
-│ write_bytes()     │   │ write_bytes()     │
-│ exists()          │   │ exists()          │
-│ makedirs()        │   │ makedirs()        │
-│ list_files()      │   │ list_files()      │
-│ delete()          │   │ delete()          │
-│ join_path()       │   │ join_path()       │
-│ get_uri()         │   │ get_uri()         │
-└───────────────────┘   └───────────────────┘
-```
-
-A factory seleciona automaticamente o backend apropriado baseado no prefixo do caminho:
-- Caminhos começando com `s3://` usam `S3Backend`
-- Todos os outros caminhos usam `LocalBackend`
+Toda leitura e escrita passa por `nwp_core.storage`, que abre um caminho local absoluto ou uma URI `s3://`. As chaves por usina são compostas em `src/rest2_ons/_keys.py`.
 
 ### 9. Escrita de Resultados (`src/rest2_ons/writers.py`)
 
@@ -369,12 +330,9 @@ pandas       Escrita de Parquet e preparo dos dados dos gráficos
 pyarrow      Motor de Parquet usado pelo pandas
 scipy        Calibração dos parâmetros (L-BFGS-B)
 pytz         Conversão de UTC para a hora local na geometria solar
-pyjson5      Configuração JSONC e artefatos de parâmetros calibrados
 plotly       Gráficos HTML interativos
 statsmodels  Linha de tendência OLS dos gráficos de dispersão (plotly)
-boto3        Cliente S3
-botocore     Erros do cliente S3
-s3fs         Sistema de arquivos S3 para Polars e Pandas
+nwp-core     Armazenamento, configuração, CLI, logs e métricas compartilhados
 ```
 
 ## Considerações de Performance

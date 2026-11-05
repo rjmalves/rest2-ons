@@ -14,13 +14,9 @@ dependencies = [
     "plotly>=6.2.0",
     "polars>=1.31.0",
     "pyarrow>=21.0.0",
-    "pyjson5>=2.0.0",
     "pytz>=2025.2",
     "scipy>=1.16.3",
     "statsmodels>=0.14.5",
-    "boto3>=1.35.0",
-    "botocore>=1.35.0",
-    "s3fs>=2024.10.0",
     "click>=8.2",
     "nwp-core[cli,skill]>=0.5.0,<0.6",
     "pydantic>=2.11,<3",
@@ -51,7 +47,6 @@ dev = [
     "moto[s3]>=5.1.17",
     "mypy>=1.20.2,<2",
     "pandas-stubs>=2.3.2.250926",
-    "boto3-stubs>=1.41.3",
     "scipy-stubs>=1.16.3.3,<1.17",
     "plotly-stubs>=0.1.4,<0.2",
     "ruff>=0.17.3,<1",
@@ -88,8 +83,8 @@ strict = true
 files = ["src/rest2_ons", "tests", "scripts/ci"]
 
 [[tool.mypy.overrides]]
-# s3fs ships no type information and has no stubs package.
-module = ["s3fs", "s3fs.*"]
+# pyarrow ships no type information and has no stubs package.
+module = ["pyarrow", "pyarrow.*"]
 ignore_missing_imports = true
 
 [tool.coverage.run]
