@@ -902,9 +902,7 @@ class REST2:
             dhi_cs,
         )
 
-    def convert_radiation(
-        self, parameters: dict[str, float] = DEFAULT_PARAMETERS
-    ) -> REST2Result:
+    def convert_radiation(self, parameters: dict[str, float]) -> REST2Result:
         ghi, ghi_tracker, dni, dhi, ghi_cs, ghi_tracker_cs, dni_cs, dhi_cs = (
             self._internal_convert_radiation(
                 self.extraterrestrial_radiation,
