@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] - 2026-11-05
+
 ### Breaking
 
 - The `rest2-ons train --config PATH` and `rest2-ons infer --config PATH` subcommands replace the single `--config` command whose `mode` key chose between training and inference
