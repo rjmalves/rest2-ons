@@ -64,6 +64,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The package version equals the latest release heading in this changelog; it reported 1.0.0
 - The mean error (ME) is predicted minus measured, as METHODOLOGY.md defines it; it was measured minus predicted. Artifacts written by earlier versions store ME with the old sign; retrain to refresh them
 
+### Security
+
+- pyarrow, urllib3, certifi and idna are locked at releases that fix the published advisories against the versions 0.1.0 locked
+
 ---
 
 ## [0.1.0] - 2025-11-28
