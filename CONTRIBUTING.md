@@ -121,8 +121,11 @@ O CI tem dois workflows:
 - `.github/workflows/repo-checks.yml` traz as verificações deste repositório:
   os gates de `scripts/ci/`, o `pytest --cov` em cada versão de Python
   suportada com envio ao Codecov, o gate de `ci/gate/` com a lista de nomes
-  proibidos obrigatória, o diff da API, as listas de arquivos do pacote e a
-  instalação pelo `setup.sh`.
+  proibidos obrigatória, o diff da API, as listas de arquivos do pacote, a
+  instalação pelo `setup.sh` e a varredura do `uv.lock` pelo osv-scanner em
+  busca de vulnerabilidades publicadas. O Dependabot não atualiza o `uv.lock`;
+  quando a varredura acusar um pacote, atualize-o com
+  `uv lock -P 'pacote==versão'` para uma versão que corrija o aviso.
 
 Os testes falham abaixo do piso de cobertura definido em `pyproject.toml`
 (`[tool.coverage.report]`); suba o piso quando a cobertura subir, nunca o

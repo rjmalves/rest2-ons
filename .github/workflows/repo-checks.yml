@@ -1,7 +1,7 @@
 # Checks of this repository that the template workflow does not run: the
 # documentation and comment gates, the coverage floor, the identifier gate with
-# a required denylist, the public API diff, the package file lists and the
-# install script.
+# a required denylist, the public API diff, the package file lists, the install
+# script and a known-vulnerability scan of uv.lock.
 name: repo-checks
 
 on:
@@ -50,9 +50,13 @@ jobs:
         env:
           PYTHON_VERSION: ${{ matrix.python-version }}
           NWP_CORE_READ_TOKEN: ${{ secrets.NWP_CORE_READ_TOKEN }}
-          GIT_CONFIG_COUNT: "1"
+          # The empty first value clears the helpers git already has for this
+          # URL, so the token helper is the only one asked.
+          GIT_CONFIG_COUNT: "2"
           GIT_CONFIG_KEY_0: credential.https://github.com.helper
-          GIT_CONFIG_VALUE_0: '!f() { if [ -n "$NWP_CORE_READ_TOKEN" ]; then echo username=x-access-token; echo "password=$NWP_CORE_READ_TOKEN"; fi; }; f'
+          GIT_CONFIG_VALUE_0: ""
+          GIT_CONFIG_KEY_1: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_1: '!f() { if [ -n "$NWP_CORE_READ_TOKEN" ]; then echo username=x-access-token; echo "password=$NWP_CORE_READ_TOKEN"; fi; }; f'
         run: uv sync --locked --python "$PYTHON_VERSION" --all-extras --all-groups
       - name: pytest
         run: uv run --no-sync pytest --cov --cov-report=term-missing --cov-report=xml
@@ -88,6 +92,22 @@ jobs:
           NWP_GATE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           NWP_GATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 ci/gate/run_gate.py --mode diff ${REQUIRE_DENYLIST:+--require-denylist}
+
+  osv:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # osv-scanner v2.7.0. The nwp-core git source has no advisory database
+      # entry, so the scan covers every other locked package.
+      - name: lock vulnerabilities
+        run: >-
+          docker run --rm --read-only
+          -v "$PWD/uv.lock:/src/uv.lock:ro"
+          ghcr.io/google/osv-scanner@sha256:4f3b7e2c64b9d38a5febc5a7e4a3dfef1d1362f726dea7a2ef4762b46469fcd0
+          scan source --lockfile /src/uv.lock
 
   api-diff:
     runs-on: ubuntu-24.04
