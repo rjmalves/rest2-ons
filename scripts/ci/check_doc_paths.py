@@ -26,22 +26,31 @@ from pathlib import Path
 from _scan import REPO_ROOT, rel, shipped_docs
 
 TOKEN = re.compile(r"`([^`\s]+)`")
-PATH_PREFIXES = ("src/", "docs/", "scripts/", "tests/", ".github/", ".claude/")
+PATH_PREFIXES = (
+    "src/",
+    "docs/",
+    "scripts/",
+    "tests/",
+    ".github/",
+    ".claude/",
+    "ci/",
+)
 ROOT_FILES = {
+    ".dockerignore",
     "ARCHITECTURE.md",
     "CHANGELOG.md",
     "CLAUDE.md",
-    "config.example.jsonc",
     "CONTRIBUTING.md",
+    "DEBT.md",
     "Dockerfile",
+    "infer.example.toml",
     "LICENSE",
-    "main.py",
     "Makefile",
     "METHODOLOGY.md",
     "pyproject.toml",
-    "pytest.ini",
     "README.md",
     "setup.sh",
+    "train.example.toml",
     "uv.lock",
 }
 ALWAYS_DEAD_PREFIXES = ("plans/", "~/git/")

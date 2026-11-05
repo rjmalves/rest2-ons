@@ -28,7 +28,7 @@ help:
 
 install:
 	@echo "Installing rest2-ons system-wide..."
-	sudo ./setup.sh
+	sudo --preserve-env=NWP_CORE_READ_TOKEN_FILE ./setup.sh
 
 install-user:
 	@echo "Installing rest2-ons for current user..."
@@ -36,7 +36,7 @@ install-user:
 
 reinstall:
 	@echo "Reinstalling rest2-ons..."
-	sudo ./setup.sh --force
+	sudo --preserve-env=NWP_CORE_READ_TOKEN_FILE ./setup.sh --force
 
 uninstall:
 	@echo "Uninstalling rest2-ons (system)..."

@@ -1,0 +1,181 @@
+# Checks of this repository that the template workflow does not run: the
+# documentation and comment gates, the coverage floor, the identifier gate with
+# a required denylist, the public API diff, the package file lists and the
+# install script.
+name: repo-checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: plan leaks
+        run: python3 scripts/ci/check_no_plan_leaks.py
+      - name: comment refs
+        run: python3 scripts/ci/check_comment_refs.py
+      - name: doc paths
+        run: python3 scripts/ci/check_doc_paths.py
+
+  coverage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.9.22"
+          enable-cache: false
+      - name: sync
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          NWP_CORE_READ_TOKEN: ${{ secrets.NWP_CORE_READ_TOKEN }}
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_0: '!f() { if [ -n "$NWP_CORE_READ_TOKEN" ]; then echo username=x-access-token; echo "password=$NWP_CORE_READ_TOKEN"; fi; }; f'
+        run: uv sync --locked --python "$PYTHON_VERSION" --all-extras --all-groups
+      - name: pytest
+        run: uv run --no-sync pytest --cov --cov-report=term-missing --cov-report=xml
+      - name: codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: coverage.xml
+          disable_search: true
+          fail_ci_if_error: false
+
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Fork and Dependabot runs receive no secrets, so they run the shape rules
+    # only; every other run fails without the denylist.
+    env:
+      REQUIRE_DENYLIST: ${{ (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) && github.actor != 'dependabot[bot]' && 'yes' || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: provision
+        run: python3 ci/gate/run_gate.py --provision
+      - name: tree
+        env:
+          NWP_GATE_DENYLIST: ${{ secrets.NWP_GATE_DENYLIST }}
+        run: python3 ci/gate/run_gate.py --mode tree ${REQUIRE_DENYLIST:+--require-denylist}
+      - name: diff
+        env:
+          NWP_GATE_DENYLIST: ${{ secrets.NWP_GATE_DENYLIST }}
+          NWP_GATE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          NWP_GATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 ci/gate/run_gate.py --mode diff ${REQUIRE_DENYLIST:+--require-denylist}
+
+  api-diff:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: api diff
+        run: python3 scripts/ci/check_api_diff.py
+
+  packaging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.9.22"
+          enable-cache: false
+      - name: build
+        run: uv build --out-dir "$RUNNER_TEMP/dist"
+      - name: file lists
+        run: |
+          python3 - "$RUNNER_TEMP/dist" <<'EOF'
+          import sys
+          import tarfile
+          import zipfile
+          from pathlib import Path
+
+          SDIST_TOP = [".gitignore", "CHANGELOG.md", "LICENSE", "PKG-INFO", "README.md", "pyproject.toml", "src"]
+
+          dist = Path(sys.argv[1])
+          (wheel_path,) = dist.glob("*.whl")
+          (sdist_path,) = dist.glob("*.tar.gz")
+
+          with zipfile.ZipFile(wheel_path) as wheel:
+              top = {name.split("/")[0] for name in wheel.namelist()}
+          wheel_top = sorted(t for t in top if not t.endswith(".dist-info"))
+          with tarfile.open(sdist_path) as sdist:
+              members = [m.name.split("/", 1)[1] for m in sdist.getmembers() if "/" in m.name]
+          sdist_top = sorted({m.split("/")[0] for m in members})
+          outside = sorted(m for m in members if m.startswith("src/") and m.split("/")[1] != "rest2_ons")
+
+          print(f"wheel: {wheel_top}")
+          print(f"sdist: {sdist_top}")
+          print(f"outside: {outside}")
+          if wheel_top != ["rest2_ons"] or sdist_top != SDIST_TOP or outside:
+              sys.exit(1)
+          EOF
+
+  install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.9.22"
+          enable-cache: false
+      - name: token file
+        env:
+          NWP_CORE_READ_TOKEN: ${{ secrets.NWP_CORE_READ_TOKEN }}
+        run: |
+          umask 077
+          printf '%s\n' "$NWP_CORE_READ_TOKEN" > "$RUNNER_TEMP/nwp-core-read-token"
+      # sudo resets PATH to its secure_path, which holds /usr/local/bin and not
+      # the directory setup-uv installs uv into.
+      - name: uv on secure_path
+        run: sudo install -m 0755 "$(command -v uv)" /usr/local/bin/uv
+      - name: user install
+        env:
+          NWP_CORE_READ_TOKEN_FILE: ${{ runner.temp }}/nwp-core-read-token
+        run: |
+          ./setup.sh --user
+          "$HOME/.local/bin/rest2-ons" --version
+      - name: system install
+        env:
+          NWP_CORE_READ_TOKEN_FILE: ${{ runner.temp }}/nwp-core-read-token
+        run: |
+          make install
+          /usr/local/bin/rest2-ons --version
+      - name: remove token file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/nwp-core-read-token"

@@ -8,6 +8,10 @@ PYTHON_BIN="python3"
 ENTRYPOINT_NAME="rest2-ons"  # as defined in pyproject [project.scripts]
 APP_NAME="rest2-ons"
 
+# git expands this at fetch time, so the script never reads the token itself.
+# shellcheck disable=SC2016
+readonly CREDENTIAL_HELPER='!f() { [ "$1" = get ] || exit 0; echo username=x-access-token; printf "password=%s\n" "$(cat "$NWP_CORE_READ_TOKEN_FILE")"; }; f'
+
 # Installation modes
 SYSTEM_INSTALL_DIR="/opt/$APP_NAME"
 SYSTEM_BIN_DIR="/usr/local/bin"
@@ -41,12 +45,23 @@ Options:
 	--uninstall     Remove the installation.
 	-h, --help      Show this help.
 
+Environment:
+	NWP_CORE_READ_TOKEN_FILE
+	                Required. Path of a 0600 file holding the nwp-core read
+	                token on one line. Under sudo, keep it with:
+	                sudo --preserve-env=NWP_CORE_READ_TOKEN_FILE ./setup.sh
+
+	uv              Required on PATH, at the [tool.uv] required-version of
+	                pyproject.toml or later. Under sudo, PATH is sudo's
+	                secure_path: put uv in /usr/local/bin.
+
 System Installation (default, requires sudo):
 	Installation directory: $SYSTEM_INSTALL_DIR
 	Symlink directory: $SYSTEM_BIN_DIR
 
 Examples:
-	sudo ./setup.sh                    # System-wide installation
+	sudo --preserve-env=NWP_CORE_READ_TOKEN_FILE ./setup.sh
+	                                   # System-wide installation
 	./setup.sh --user                  # User-only installation
 	sudo ./setup.sh --uninstall        # Remove system installation
 	./setup.sh --user --uninstall      # Remove user installation
@@ -126,13 +141,47 @@ fi
 VENV_DIR="$INSTALL_DIR/venv"
 
 # Handle existing installation
+if [[ -d "$INSTALL_DIR" && $FORCE -eq 0 ]]; then
+	error "Installation directory already exists: $INSTALL_DIR\nUse --force to reinstall or --uninstall to remove."
+fi
+
+UV_MIN_VERSION="$(sed -n 's/^required-version = ">=\([0-9][0-9.]*\)".*/\1/p' "$PROJECT_ROOT/pyproject.toml" || true)"
+if [[ -z "$UV_MIN_VERSION" ]]; then
+	error "Cannot read the uv floor: no [tool.uv] required-version = \">=X.Y.Z\" line in $PROJECT_ROOT/pyproject.toml."
+fi
+
+if ! command -v uv >/dev/null 2>&1; then
+	error "uv not found in PATH. Install uv $UV_MIN_VERSION or later.\nUnder sudo, PATH is sudo's secure_path, which includes /usr/local/bin and not ~/.local/bin: put uv in /usr/local/bin."
+fi
+
+UV_VERSION="$(uv --version | awk '{ print $2 }')"
+if [[ "$(printf '%s\n%s\n' "$UV_MIN_VERSION" "$UV_VERSION" | sort -V | sed -n 1p)" != "$UV_MIN_VERSION" ]]; then
+	error "uv $UV_VERSION is older than $UV_MIN_VERSION, the [tool.uv] required-version in pyproject.toml."
+fi
+
+if [[ -z "${NWP_CORE_READ_TOKEN_FILE:-}" ]]; then
+	error "NWP_CORE_READ_TOKEN_FILE is not set. Set it to the path of a 0600 file holding the nwp-core read token on one line.\nUnder sudo, run: sudo --preserve-env=NWP_CORE_READ_TOKEN_FILE ./setup.sh"
+fi
+if [[ ! -f "$NWP_CORE_READ_TOKEN_FILE" ]]; then
+	error "NWP_CORE_READ_TOKEN_FILE=$NWP_CORE_READ_TOKEN_FILE is not a regular file."
+fi
+TOKEN_FILE_MODE="$(stat -L -c %a "$NWP_CORE_READ_TOKEN_FILE")"
+if (( 8#$TOKEN_FILE_MODE & 044 )); then
+	error "NWP_CORE_READ_TOKEN_FILE=$NWP_CORE_READ_TOKEN_FILE is readable by group or others.\nRun: chmod 600 \"$NWP_CORE_READ_TOKEN_FILE\""
+fi
+if [[ "$(awk 'END { print NR }' "$NWP_CORE_READ_TOKEN_FILE")" != 1 ]] || ! grep -q . "$NWP_CORE_READ_TOKEN_FILE"; then
+	error "NWP_CORE_READ_TOKEN_FILE=$NWP_CORE_READ_TOKEN_FILE must hold exactly one non-empty line."
+fi
+if grep -q $'\r' "$NWP_CORE_READ_TOKEN_FILE"; then
+	error "NWP_CORE_READ_TOKEN_FILE=$NWP_CORE_READ_TOKEN_FILE must not contain a carriage return."
+fi
+# The helper's cat runs in git's working directory, not in this one.
+NWP_CORE_READ_TOKEN_FILE="$(realpath -- "$NWP_CORE_READ_TOKEN_FILE")"
+export NWP_CORE_READ_TOKEN_FILE
+
 if [[ -d "$INSTALL_DIR" ]]; then
-	if [[ $FORCE -eq 1 ]]; then
-		log "Removing existing installation (--force requested)..."
-		rm -rf "$INSTALL_DIR"
-	else
-		error "Installation directory already exists: $INSTALL_DIR\nUse --force to reinstall or --uninstall to remove."
-	fi
+	log "Removing existing installation (--force requested)..."
+	rm -rf "$INSTALL_DIR"
 fi
 
 # Create installation directory
@@ -141,30 +190,21 @@ mkdir -p "$INSTALL_DIR"
 # Leave no half-built installation behind if a later step fails.
 trap 'rm -rf "$INSTALL_DIR"' EXIT
 
-# Copy application files to installation directory
-log "Copying application files..."
-cp -r "$PROJECT_ROOT/src" "$INSTALL_DIR/"
-cp "$PROJECT_ROOT/pyproject.toml" "$INSTALL_DIR/"
-cp "$PROJECT_ROOT/README.md" "$INSTALL_DIR/" 2>/dev/null || true
-
-# Create virtual environment in installation directory
-log "Creating virtual environment in $VENV_DIR"
-"$PYTHON_BIN" -m venv "$VENV_DIR"
-
-# Activate and install
-source "$VENV_DIR/bin/activate"
-
-log "Upgrading pip, setuptools, wheel..."
-run_quietly_or_show_output python -m pip install --upgrade pip setuptools wheel ||
-	error "Upgrading pip failed; its output is above."
-
-# pip enforces requires-python from pyproject.toml, the one place it is set.
+# uv enforces requires-python and the lock; the credential helper lives in the
+# environment of this one command only.
 log "Installing $APP_NAME..."
-cd "$INSTALL_DIR"
-run_quietly_or_show_output pip install . ||
-	error "Installing $APP_NAME failed; pip's output is above."
-
-deactivate
+cd "$PROJECT_ROOT"
+run_quietly_or_show_output env \
+	UV_PROJECT_ENVIRONMENT="$VENV_DIR" \
+	UV_PYTHON_DOWNLOADS=never \
+	GIT_TERMINAL_PROMPT=0 \
+	GIT_CONFIG_COUNT=2 \
+	GIT_CONFIG_KEY_0=credential.https://github.com.helper \
+	GIT_CONFIG_VALUE_0= \
+	GIT_CONFIG_KEY_1=credential.https://github.com.helper \
+	GIT_CONFIG_VALUE_1="$CREDENTIAL_HELPER" \
+	uv sync --locked --no-dev --no-editable --compile-bytecode --python "$PYTHON_BIN" ||
+	error "Installing $APP_NAME failed; uv's output is above."
 
 # Create bin directory if it doesn't exist
 mkdir -p "$BIN_DIR"
@@ -181,8 +221,7 @@ log "Created symlink: $SYMLINK_PATH -> $VENV_DIR/bin/$ENTRYPOINT_NAME"
 # Set appropriate permissions
 if [[ $USE_SUDO -eq 1 ]]; then
 	# For system install, make it readable by all but writable only by root
-	chmod -R 755 "$INSTALL_DIR"
-	chmod 755 "$SYMLINK_PATH"
+	chmod -R a+rX,go-w "$INSTALL_DIR"
 fi
 
 trap - EXIT

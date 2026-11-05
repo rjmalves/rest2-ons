@@ -50,6 +50,8 @@ dev = [
     "scipy-stubs>=1.16.3.3,<1.17",
     "plotly-stubs>=0.1.4,<0.2",
     "ruff>=0.17.3,<1",
+    "pyyaml>=6.0.3",
+    "types-pyyaml>=6.0.12.20260906",
 ]
 
 [project.scripts]
@@ -71,8 +73,10 @@ ignore = ["RUF012"]
 # Timestamps are naive and mean UTC throughout rest2's data contract, so test
 # inputs build naive datetimes on purpose. src/rest2_ons keeps the rule.
 "tests/**" = ["DTZ"]
-# The scripts/ci gates and the test-data generator report on stdout by design.
+# The scripts/ci gates, the ci/ checks and the test-data generator report on
+# stdout by design.
 "scripts/**" = ["T201"]
+"ci/**" = ["T201"]
 "tests/fixtures/generate_test_data.py" = ["T201"]
 
 [tool.ruff.lint.isort]
@@ -80,7 +84,7 @@ known-first-party = ["rest2_ons"]
 
 [tool.mypy]
 strict = true
-files = ["src/rest2_ons", "tests", "scripts/ci"]
+files = ["src/rest2_ons", "tests", "scripts/ci", "ci"]
 
 [[tool.mypy.overrides]]
 # pyarrow ships no type information and has no stubs package.

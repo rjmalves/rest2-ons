@@ -138,12 +138,12 @@ When in doubt, **delete** and put the thought in the commit message.
   `scripts/ci/check_comment_refs.py`.
 - **N4, no plan or workstream leakage** in `src/rest2_ons`, `tests/` prose
   or the shipped docs (`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`,
-  `ARCHITECTURE.md`, `METHODOLOGY.md`). No `epic`, `ticket` or `sprint`
-  vocabulary, no plan ids, no acceptance-criteria tags, no program registry
-  ids (requirement, decision or question ids). When a banned token is a
-  trailing tag on a contract line, amputate the tag and keep the invariant.
-  Plan refs in **test names** stay allowed (identifiers join with `_`, which
-  the gate's word boundaries respect). Gate:
+  `ARCHITECTURE.md`, `METHODOLOGY.md`, `DEBT.md`). No `epic`, `ticket` or
+  `sprint` vocabulary, no plan ids, no acceptance-criteria tags, no program
+  registry ids (requirement, decision or question ids). When a banned token
+  is a trailing tag on a contract line, amputate the tag and keep the
+  invariant. Plan refs in **test names** stay allowed (identifiers join with
+  `_`, which the gate's word boundaries respect). Gate:
   `scripts/ci/check_no_plan_leaks.py`.
 - **N5, no banners fencing groups inside one long function**: extract a
   function. Dividers between top-level sections of a large module are fine.

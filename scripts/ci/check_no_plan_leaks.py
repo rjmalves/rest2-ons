@@ -8,7 +8,7 @@ not how the work was organised (`.claude/rules/comments.md` N4,
 Three hard scopes (any hit fails the gate):
 
 * shipped docs: whole-file scan of README.md, CONTRIBUTING.md, CHANGELOG.md,
-  ARCHITECTURE.md, METHODOLOGY.md and docs/**/*.md, minus
+  ARCHITECTURE.md, METHODOLOGY.md, DEBT.md and docs/**/*.md, minus
   ``_scan.EXEMPT_DOCS``.
 * source prose: comments and docstrings under src/rest2_ons.
 * test prose: comments and docstrings under tests/. Test file names and test
@@ -57,6 +57,7 @@ HARD_DOCS = [
     "CHANGELOG.md",
     "ARCHITECTURE.md",
     "METHODOLOGY.md",
+    "DEBT.md",
 ]
 HARD_GLOBS = ["docs/**/*.md"]
 

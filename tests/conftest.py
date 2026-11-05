@@ -1,6 +1,8 @@
+import importlib.util
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import numpy as np
@@ -25,6 +27,7 @@ from tests.fixtures.generate_test_data import (
 )
 
 WINDOW = TimeWindow(start=datetime(2024, 1, 1), end=datetime(2024, 1, 2))
+CI_DIR = Path(__file__).resolve().parents[1] / "scripts" / "ci"
 
 
 def _shared_fields(tmp_path: Path) -> dict[str, Any]:
@@ -74,6 +77,17 @@ def infer_config(tmp_path: Path, **overrides: Any) -> InferConfig:
 def local_storage(path: Path) -> Storage:
     """The ``Storage`` of the absolute local directory ``path``."""
     return open_storage(StorageLocation(uri=str(path)), StorageSettings())
+
+
+def load_ci_script(name: str, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    """The ``scripts/ci/<name>.py`` module, with ``scripts/ci`` importable."""
+    monkeypatch.syspath_prepend(str(CI_DIR))
+    spec = importlib.util.spec_from_file_location(name, CI_DIR / f"{name}.py")
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 @pytest.fixture(scope="session")

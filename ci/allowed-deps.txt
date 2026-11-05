@@ -1,0 +1,40 @@
+# nwp-core-template: allowed-deps.txt 0.1.0
+# Dependency allowlist of nwp-fetch (R15): the distributions that may be
+# installed in its package closure and image. Each copy extends this file with
+# its own tool-specific entries in the last section.
+# One distribution name per line; `#` starts a comment; names compare as
+# PEP 503 names.
+
+# --- nwp-core base closure (ADR-029) ---
+nwp-core
+pydantic
+pydantic-core
+annotated-types
+typing-extensions
+typing-inspection
+boto3
+botocore
+s3transfer
+jmespath
+python-dateutil
+six
+urllib3
+
+# --- nwp-core [cli] closure (ADR-026) ---
+click
+
+# --- tool-specific entries: edit in each copy ---
+rest2-ons
+narwhals
+numpy
+packaging
+pandas
+patsy
+plotly
+polars
+polars-runtime-32
+pyarrow
+pytz
+scipy
+statsmodels
+tzdata
