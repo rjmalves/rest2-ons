@@ -14,7 +14,6 @@ class TestLocationInputData:
     """Test LocationInputData dataclass."""
 
     def test_apply_unit_conversions_leaves_hpa_pressure_unchanged(self) -> None:
-        """Test unit conversions are applied correctly."""
         time_data = pl.DataFrame({"time": [datetime(2024, 1, 15, 12, 0)]})
 
         location_data = LocationInputData(
@@ -41,7 +40,6 @@ class TestLocationInputData:
 
         location_data.apply_unit_conversions()
 
-        # psurf: already hPa, left unchanged
         assert abs(location_data.psurf["valor"][0] - 1013.25) < 1e-12, (
             "Pressure must not be re-converted"
         )
@@ -144,7 +142,6 @@ class TestInputData:
             }
         )
 
-        # Filter for day 1 (second row)
         filtered = InputData.filter_forecasting_day(df, 1)
 
         assert len(filtered) == 1
@@ -304,7 +301,6 @@ class TestReadersDataFlow:
         self, tmp_path: Path, sample_atmospheric_data: pl.DataFrame
     ) -> None:
         """Test _read method with parquet files."""
-        # Write test data
         test_file = tmp_path / "test.parquet"
         sample_atmospheric_data.write_parquet(test_file)
 

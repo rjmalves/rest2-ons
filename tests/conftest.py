@@ -99,7 +99,6 @@ def sample_atmospheric_data() -> pl.DataFrame:
     """
     np.random.seed(42)
 
-    # Generate time series
     n_times = 24  # 24 hours
     base_time = datetime(2024, 1, 15, 0, 0)
     times = [
@@ -113,7 +112,6 @@ def sample_atmospheric_data() -> pl.DataFrame:
         for h in range(n_times)
     ]
 
-    # Grid points
     lats = [-23.0, -22.5, -22.0]
     lons = [-46.0, -45.5, -45.0]
 
@@ -197,10 +195,8 @@ def sample_measured_data() -> pl.DataFrame:
         # Simulate solar irradiance pattern (zero at night, peak at noon)
         hour = time.hour
         if 6 <= hour <= 18:
-            # Simple sinusoidal pattern for daytime
             solar_angle = (hour - 6) * np.pi / 12
             base_irradiance = 1000 * np.sin(solar_angle)
-            # Add some noise
             irradiance = base_irradiance + np.random.normal(0, 50)
             irradiance = max(0, irradiance)
         else:

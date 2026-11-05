@@ -67,7 +67,6 @@ class TestFullPipeline:
         """Test that InputData can read all required files."""
         reader = InputData(local_storage(setup_test_data))
 
-        # Test reading usinas
         usinas = reader.read_usinas()
         assert len(usinas) > 0
         assert "id_usina" in usinas.columns
@@ -101,7 +100,6 @@ class TestPipelineErrorHandling:
         """Test that missing input directory is handled."""
         reader = InputData(local_storage(tmp_path / "nonexistent"))
 
-        # Should raise error when trying to read
         with pytest.raises(LocationUnusableError):
             reader.read_usinas()
 
@@ -112,7 +110,6 @@ class TestPipelineErrorHandling:
 
         reader = InputData(local_storage(input_dir))
 
-        # Should raise error for missing usinas.csv
         with pytest.raises(ObjectNotFoundError):
             reader.read_usinas()
 
@@ -128,7 +125,6 @@ class TestPipelinePerformance:
 
         import numpy as np
 
-        # Generate larger dataset
         n_rows = 10000
         df = pl.DataFrame(
             {
@@ -140,11 +136,9 @@ class TestPipelinePerformance:
             }
         )
 
-        # Write
         test_file = tmp_path / "large.parquet"
         df.write_parquet(test_file)
 
-        # Time reading
         start = time.time()
         reader = InputData(local_storage(tmp_path))
         result = reader._read("large.parquet", {})
