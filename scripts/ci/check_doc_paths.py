@@ -26,7 +26,7 @@ from pathlib import Path
 from _scan import REPO_ROOT, rel, shipped_docs
 
 TOKEN = re.compile(r"`([^`\s]+)`")
-PATH_PREFIXES = ("app/", "docs/", "scripts/", "tests/", ".github/", ".claude/")
+PATH_PREFIXES = ("src/", "docs/", "scripts/", "tests/", ".github/", ".claude/")
 ROOT_FILES = {
     "ARCHITECTURE.md",
     "CHANGELOG.md",

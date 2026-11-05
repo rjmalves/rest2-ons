@@ -39,8 +39,9 @@ style lives in the global Python rules; these are the repo-specific rules.
 - **Datetimes are naive and mean UTC**, the same contract as the input data.
   ruff `DTZ` is off under `tests/` for this reason; never attach a local
   timezone to a test input.
-- **Markers are declared in `pytest.ini`** (`--strict-markers` rejects any
-  other): `unit`, `integration`, `slow`, `s3` and `plotting`.
+- **Markers are declared in `[tool.pytest.ini_options]` in `pyproject.toml`**
+  (`--strict-markers` rejects any other): `unit`, `integration`, `slow`, `s3`
+  and `plotting`.
 
 ## What a change ships with
 

@@ -107,8 +107,8 @@ When in doubt, **delete** and put the thought in the commit message.
   longitude sign (west negative), the radiation type a series carries (GHI,
   DNI, DHI or tracker GHI), and naive timestamps that mean UTC versus the
   local time used for solar geometry. The declared input units live in
-  `DECLARED_UNITS` (`app/input_contract.py`); reference it instead of
-  restating a unit list. The direction of the conversion is the
+  `DECLARED_UNITS` (`src/rest2_ons/input_contract.py`); reference it instead
+  of restating a unit list. The direction of the conversion is the
   load-bearing clause.
 - **D3, Rationale above suppression.** Every `# noqa: CODE`,
   `# type: ignore[code]`, `pytest.mark.xfail`, and every deliberate
@@ -136,7 +136,7 @@ When in doubt, **delete** and put the thought in the commit message.
   name, a published reference such as the REST2 paper). For a symbol plus
   line, keep the symbol and strip the line. Gate:
   `scripts/ci/check_comment_refs.py`.
-- **N4, no plan or workstream leakage** in `app/`, `main.py`, `tests/` prose
+- **N4, no plan or workstream leakage** in `src/rest2_ons`, `tests/` prose
   or the shipped docs (`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`,
   `ARCHITECTURE.md`, `METHODOLOGY.md`). No `epic`, `ticket` or `sprint`
   vocabulary, no plan ids, no acceptance-criteria tags, no program registry
@@ -180,7 +180,7 @@ Tighten these to one clause plus the owning symbol; never lose the invariant.
 
 - `scripts/ci/check_comment_refs.py`: hard gate on N3.
 - `scripts/ci/check_no_plan_leaks.py`: hard gate on N4, over the shipped
-  docs and over `app/`, `main.py` and `tests/` prose.
+  docs and over `src/rest2_ons` and `tests/` prose.
 - `scripts/ci/check_comment_bloat.py`: advisory; long comment blocks and
   repeated clauses, candidates for a comment-skeptic pass.
 - `scripts/ci/quality_report.py`: advisory hotspot ranking (churn, size,

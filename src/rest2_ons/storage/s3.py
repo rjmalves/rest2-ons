@@ -19,7 +19,7 @@ class S3Backend(StorageBackend):
         self.s3fs = s3fs.S3FileSystem()
 
     def _parse_s3_uri(self, path: str) -> tuple[str, str]:
-        """Parse s3://bucket/key into (bucket, key)."""
+        """Parse s3://test-bucket/key into (bucket, key)."""
         match = re.match(r"s3://([^/]+)/(.*)", path)
         if not match:
             raise ValueError(f"Invalid S3 URI: {path}")

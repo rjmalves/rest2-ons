@@ -1,0 +1,79 @@
+{
+  "commands": {
+    "infer": [
+      [
+        "--config"
+      ],
+      [
+        "--end"
+      ],
+      [
+        "--lookback"
+      ],
+      [
+        "--start"
+      ]
+    ],
+    "train": [
+      [
+        "--config"
+      ]
+    ]
+  },
+  "environment": {
+    "InferConfig": {
+      "artifact.anonymous": "REST2_ONS_ARTIFACT__ANONYMOUS",
+      "artifact.endpoint_url": "REST2_ONS_ARTIFACT__ENDPOINT_URL",
+      "artifact.provider_source": "REST2_ONS_ARTIFACT__PROVIDER_SOURCE",
+      "artifact.storage_class": "REST2_ONS_ARTIFACT__STORAGE_CLASS",
+      "artifact.uri": "REST2_ONS_ARTIFACT__URI",
+      "forecasting_day_ahead": "REST2_ONS_FORECASTING_DAY_AHEAD",
+      "input.anonymous": "REST2_ONS_INPUT__ANONYMOUS",
+      "input.endpoint_url": "REST2_ONS_INPUT__ENDPOINT_URL",
+      "input.provider_source": "REST2_ONS_INPUT__PROVIDER_SOURCE",
+      "input.storage_class": "REST2_ONS_INPUT__STORAGE_CLASS",
+      "input.uri": "REST2_ONS_INPUT__URI",
+      "output.anonymous": "REST2_ONS_OUTPUT__ANONYMOUS",
+      "output.endpoint_url": "REST2_ONS_OUTPUT__ENDPOINT_URL",
+      "output.provider_source": "REST2_ONS_OUTPUT__PROVIDER_SOURCE",
+      "output.storage_class": "REST2_ONS_OUTPUT__STORAGE_CLASS",
+      "output.uri": "REST2_ONS_OUTPUT__URI",
+      "plant_ids": "REST2_ONS_PLANT_IDS",
+      "plots": "REST2_ONS_PLOTS",
+      "storage.connect_timeout_s": "REST2_ONS_STORAGE__CONNECT_TIMEOUT_S",
+      "storage.max_attempts": "REST2_ONS_STORAGE__MAX_ATTEMPTS",
+      "storage.max_pool_connections": "REST2_ONS_STORAGE__MAX_POOL_CONNECTIONS",
+      "storage.read_timeout_s": "REST2_ONS_STORAGE__READ_TIMEOUT_S",
+      "target_radiation_type": "REST2_ONS_TARGET_RADIATION_TYPE",
+      "window.end": "REST2_ONS_WINDOW__END",
+      "window.start": "REST2_ONS_WINDOW__START"
+    },
+    "TrainConfig": {
+      "artifact.anonymous": "REST2_ONS_ARTIFACT__ANONYMOUS",
+      "artifact.endpoint_url": "REST2_ONS_ARTIFACT__ENDPOINT_URL",
+      "artifact.provider_source": "REST2_ONS_ARTIFACT__PROVIDER_SOURCE",
+      "artifact.storage_class": "REST2_ONS_ARTIFACT__STORAGE_CLASS",
+      "artifact.uri": "REST2_ONS_ARTIFACT__URI",
+      "forecasting_day_ahead": "REST2_ONS_FORECASTING_DAY_AHEAD",
+      "input.anonymous": "REST2_ONS_INPUT__ANONYMOUS",
+      "input.endpoint_url": "REST2_ONS_INPUT__ENDPOINT_URL",
+      "input.provider_source": "REST2_ONS_INPUT__PROVIDER_SOURCE",
+      "input.storage_class": "REST2_ONS_INPUT__STORAGE_CLASS",
+      "input.uri": "REST2_ONS_INPUT__URI",
+      "plant_ids": "REST2_ONS_PLANT_IDS",
+      "plots": "REST2_ONS_PLOTS",
+      "storage.connect_timeout_s": "REST2_ONS_STORAGE__CONNECT_TIMEOUT_S",
+      "storage.max_attempts": "REST2_ONS_STORAGE__MAX_ATTEMPTS",
+      "storage.max_pool_connections": "REST2_ONS_STORAGE__MAX_POOL_CONNECTIONS",
+      "storage.read_timeout_s": "REST2_ONS_STORAGE__READ_TIMEOUT_S",
+      "target_radiation_type": "REST2_ONS_TARGET_RADIATION_TYPE",
+      "test_window.end": "REST2_ONS_TEST_WINDOW__END",
+      "test_window.start": "REST2_ONS_TEST_WINDOW__START",
+      "training_window.end": "REST2_ONS_TRAINING_WINDOW__END",
+      "training_window.start": "REST2_ONS_TRAINING_WINDOW__START",
+      "validation_window.end": "REST2_ONS_VALIDATION_WINDOW__END",
+      "validation_window.start": "REST2_ONS_VALIDATION_WINDOW__START"
+    }
+  },
+  "group": []
+}

@@ -143,8 +143,7 @@ trap 'rm -rf "$INSTALL_DIR"' EXIT
 
 # Copy application files to installation directory
 log "Copying application files..."
-cp -r "$PROJECT_ROOT/app" "$INSTALL_DIR/"
-cp "$PROJECT_ROOT/main.py" "$INSTALL_DIR/"
+cp -r "$PROJECT_ROOT/src" "$INSTALL_DIR/"
 cp "$PROJECT_ROOT/pyproject.toml" "$INSTALL_DIR/"
 cp "$PROJECT_ROOT/README.md" "$INSTALL_DIR/" 2>/dev/null || true
 

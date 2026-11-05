@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 import numpy as np
 import polars as pl
 import pytest
+from nwp_core.metrics.skill import mae, me, rmse
 
-from app.readers import LocationInputData
-from app.services.radiation import REST2
-from app.utils.metrics import mae, me, rmse
+from rest2_ons.readers import LocationInputData
+from rest2_ons.services.radiation import REST2
 
 PARAMETERS = {"mu0": 0.2, "g": 0.7}
 

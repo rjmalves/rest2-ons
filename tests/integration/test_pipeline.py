@@ -4,9 +4,9 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from app.input_contract import validate_input_units
-from app.readers import InputData
-from app.storage import StorageFactory
+from rest2_ons.input_contract import validate_input_units
+from rest2_ons.readers import InputData
+from rest2_ons.storage import StorageFactory
 
 
 @pytest.mark.integration
@@ -46,20 +46,6 @@ class TestFullPipeline:
         for filename, data in files.items():
             data.write_parquet(input_dir / filename)
 
-        return input_dir
-
-    @pytest.fixture
-    def setup_measured_data(
-        self, tmp_path: Path, sample_measured_data: pl.DataFrame
-    ) -> Path:
-        """Set up measured irradiance data."""
-        input_dir = tmp_path / "input"
-        if not input_dir.exists():
-            input_dir.mkdir()
-
-        sample_measured_data.write_parquet(
-            input_dir / "measured_irradiance.parquet"
-        )
         return input_dir
 
     @pytest.fixture
@@ -195,7 +181,7 @@ class TestS3Integration:
         self, mock_s3_bucket: str, sample_atmospheric_data: pl.DataFrame
     ) -> None:
         """Test reading and writing parquet via S3 storage."""
-        from app.storage import S3Backend
+        from rest2_ons.storage import S3Backend
 
         storage = S3Backend()
         bucket = mock_s3_bucket
@@ -213,7 +199,7 @@ class TestS3Integration:
 
     def test_s3_bytes_roundtrip(self, mock_s3_bucket: str) -> None:
         """Test reading and writing bytes via S3."""
-        from app.storage import S3Backend
+        from rest2_ons.storage import S3Backend
 
         storage = S3Backend()
         bucket = mock_s3_bucket

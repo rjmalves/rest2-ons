@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -20,19 +20,30 @@ dependencies = [
     "statsmodels>=0.14.5",
     "boto3>=1.35.0",
     "botocore>=1.35.0",
-    "s3fs>=2024.10.0"
+    "s3fs>=2024.10.0",
+    "click>=8.2",
+    "nwp-core[cli,skill]>=0.5.0,<0.6",
+    "pydantic>=2.11,<3",
+    "pydantic-core>=2.33,<3",
 ]
+
+[tool.uv]
+required-version = ">=0.9.22"
+build-constraint-dependencies = ["hatchling==1.33.0"]
+
+[tool.uv.sources]
+nwp-core = { git = "https://github.com/rjmalves/nwp-core.git", rev = "956c56b66e2d3d893c5542e9114c07151d062219" }
 
 [tool.hatch.version]
-path = "app/__init__.py"
+path = "src/rest2_ons/_version.py"
 
 [tool.hatch.build.targets.wheel]
-include = [
-  "app/",
-  "main.py"
-]
+packages = ["src/rest2_ons"]
 
-[project.optional-dependencies]
+[tool.hatch.build.targets.sdist]
+only-include = ["src/rest2_ons", "README.md", "LICENSE", "CHANGELOG.md"]
+
+[dependency-groups]
 dev = [
     "pytest>=9.0.1",
     "pytest-cov>=7.0.0",
@@ -47,7 +58,7 @@ dev = [
 ]
 
 [project.scripts]
-rest2-ons = "main:main"
+rest2-ons = "rest2_ons._cli:main"
 
 [tool.ruff]
 line-length = 80
@@ -63,24 +74,44 @@ ignore = ["RUF012"]
 
 [tool.ruff.lint.per-file-ignores]
 # Timestamps are naive and mean UTC throughout rest2's data contract, so test
-# inputs build naive datetimes on purpose. app/ and main.py keep the rule.
+# inputs build naive datetimes on purpose. src/rest2_ons keeps the rule.
 "tests/**" = ["DTZ"]
 # The scripts/ci gates and the test-data generator report on stdout by design.
 "scripts/**" = ["T201"]
 "tests/fixtures/generate_test_data.py" = ["T201"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app"]
+known-first-party = ["rest2_ons"]
 
 [tool.mypy]
 strict = true
+files = ["src/rest2_ons", "tests", "scripts/ci"]
 
 [[tool.mypy.overrides]]
 # s3fs ships no type information and has no stubs package.
 module = ["s3fs", "s3fs.*"]
 ignore_missing_imports = true
 
+[tool.coverage.run]
+source = ["rest2_ons"]
+patch = ["subprocess"]
+
 [tool.coverage.report]
 # A ratchet at the measured baseline: raise it when coverage rises, never
 # lower it to land a change.
 fail_under = 94
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: Unit tests for individual components",
+    "integration: Integration tests for full pipeline",
+    "slow: Tests that take a long time to run",
+    "s3: Tests that require S3/moto (AWS simulation)",
+    "plotting: Tests that generate plots (skip on CI if needed)",
+]
+addopts = "-v --strict-markers"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]

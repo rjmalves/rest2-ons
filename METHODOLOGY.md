@@ -256,7 +256,7 @@ Each input is a Parquet file of forecasts by grid point, run time and valid
 time. The file names and columns are listed in the
 [README](README.md#dados-de-entrada).
 
-**Declared input units** (declared in `app/input_contract.py` as `DECLARED_UNITS`; enforced at the read boundary):
+**Declared input units** (declared in `src/rest2_ons/input_contract.py` as `DECLARED_UNITS`; enforced at the read boundary):
 
 | Input    | File unit | Envelope (plausible range) |
 | -------- | --------- | -------------------------- |

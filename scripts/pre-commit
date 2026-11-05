@@ -6,7 +6,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 BIN="${BIN:-.venv/bin}"
 if [ ! -x "$BIN/ruff" ]; then
-  echo "pre-commit: $BIN/ruff not found; run 'uv sync --extra dev' first" >&2
+  echo "pre-commit: $BIN/ruff not found; run 'uv sync' first" >&2
   exit 1
 fi
 
@@ -15,7 +15,7 @@ echo "==> ruff format --check"
 echo "==> ruff check"
 "$BIN/ruff" check .
 echo "==> mypy --strict"
-"$BIN/mypy" --strict app main.py tests scripts/ci
+"$BIN/mypy"
 echo "==> plan-structure leak gate"
 "$BIN/python" scripts/ci/check_no_plan_leaks.py
 echo "==> rot-proof reference gate"

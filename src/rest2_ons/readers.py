@@ -1,16 +1,17 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
 import polars as pl
 import pyjson5
+from nwp_core.config import TimeWindow
 
-from app.input_contract import validate_input_units
-from app.internal.config import Config
-from app.storage import StorageFactory
-from app.utils.data import PlantArtifact
-from app.utils.utils import haversine_distance
+from rest2_ons._config import InferConfig
+from rest2_ons.input_contract import validate_input_units
+from rest2_ons.storage import StorageFactory
+from rest2_ons.utils.data import PlantArtifact
+from rest2_ons.utils.utils import haversine_distance
 
 FORECAST_FILES = {
     "cod": "cod.parquet",
@@ -23,6 +24,18 @@ FORECAST_FILES = {
     "psurf": "psurf.parquet",
     "temp2m": "temp.parquet",
 }
+
+
+def _naive_utc(bound: datetime) -> datetime:
+    """``bound`` as the naive UTC datetime every frame here is stamped in.
+
+    Convert with ``astimezone`` first: ``replace(tzinfo=None)`` alone keeps
+    the wall time of a non-UTC bound. Polars raises ``SchemaError`` when a
+    naive column is compared with an aware literal.
+    """
+    if bound.utcoffset() is None:
+        raise ValueError("window bounds must be timezone-aware")
+    return bound.astimezone(UTC).replace(tzinfo=None)
 
 
 @dataclass
@@ -65,7 +78,6 @@ class LocationInputData:
         return self
 
     def calculate_derived_fields(self) -> "LocationInputData":
-        # Calculate angstrom exponent from optical depths
         # Avoid division by zero and log of zero
         od550_safe = self.od550.with_columns(
             pl.col("valor").clip(lower_bound=1e-10)
@@ -119,11 +131,9 @@ class LocationDataBuilder:
         self.end_date: datetime | None = None
         self.forecasting_day: int | None = None
 
-    def time_range(
-        self, start_date: datetime, end_date: datetime
-    ) -> "LocationDataBuilder":
-        self.start_date = start_date
-        self.end_date = end_date
+    def time_range(self, window: TimeWindow) -> "LocationDataBuilder":
+        self.start_date = _naive_utc(window.start)
+        self.end_date = _naive_utc(window.end)
         return self
 
     def forecasting_day_filter(self, day: int) -> "LocationDataBuilder":
@@ -172,10 +182,9 @@ class InputData:
     def _read(self, filename: str, filters: dict[str, Any]) -> pl.DataFrame:
         if filename.endswith(".csv"):
             return self._read_csv(filename, filters)
-        elif filename.endswith(".parquet"):
+        if filename.endswith(".parquet"):
             return self._read_parquet(filename, filters)
-        else:
-            raise ValueError(f"Unsupported file format for file: {filename}")
+        raise ValueError(f"Unsupported file format for file: {filename}")
 
     def read_usinas(self, ids_usinas: list[str] | None = None) -> pl.DataFrame:
         if ids_usinas is None:
@@ -201,18 +210,11 @@ class InputData:
         """Find the nearest grid point to target coordinates."""
         file_path = self.storage.join_path(self.path, reference_file)
         df = self.storage.read_parquet(file_path).collect()
-
-        # Get unique coordinate pairs
         coords = df.select(["latitude", "longitude"]).unique()
-
-        # Calculate distances to all points
-        distances = []
-        for row in coords.iter_rows():
-            lat, lon = row
-            dist = haversine_distance(target_lat, target_lon, lat, lon)
-            distances.append((dist, lat, lon))
-
-        # Find the closest point
+        distances = [
+            (haversine_distance(target_lat, target_lon, lat, lon), lat, lon)
+            for lat, lon in coords.iter_rows()
+        ]
         _, closest_lat, closest_lon = min(distances)
         return closest_lat, closest_lon
 
@@ -258,7 +260,6 @@ class InputData:
             for field_name, filename in FORECAST_FILES.items()
         }
 
-        # Create LocationInputData instance
         location_data = LocationInputData(
             latitude=latitude,
             longitude=longitude,
@@ -272,14 +273,7 @@ class InputData:
         location_data.apply_unit_conversions()
         location_data.calculate_derived_fields()
 
-        # Upsample data to 10-minute intervals
-        location_data = location_data.upsample_to_interval("10m")
-        return location_data
-
-    def _upsample(self, df: pl.DataFrame, interval: str) -> pl.DataFrame:
-        return df.upsample(time_column="time", every=interval).fill_null(
-            strategy="forward"
-        )
+        return location_data.upsample_to_interval("10m")
 
     def _load_and_filter_field(
         self,
@@ -309,8 +303,7 @@ class InputData:
             time_col = "data_hora_previsao"
             df = df.with_columns(pl.col(time_col).cast(pl.Datetime))
             df = df.filter(
-                (pl.col(time_col) >= start_date)
-                & (pl.col(time_col) <= end_date)
+                (pl.col(time_col) >= start_date) & (pl.col(time_col) < end_date)
             )
 
         if forecasting_day is not None:
@@ -319,21 +312,16 @@ class InputData:
         return df
 
     def read_measured_for_plant(
-        self,
-        plant_id: str,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
+        self, plant_id: str, window: TimeWindow
     ) -> pl.DataFrame:
         df = self._read("measured_irradiance.parquet", {"id_usina": plant_id})
-        df = df.with_columns(
-            [
-                pl.col("data_hora_observacao").cast(pl.Datetime),
-            ]
-        )
+        df = df.with_columns(pl.col("data_hora_observacao").cast(pl.Datetime))
         df = df.drop("id_usina")
         df = df.rename({"data_hora_observacao": "time"})
-        df = df.filter(pl.col("time") >= start_date) if start_date else df
-        df = df.filter(pl.col("time") <= end_date) if end_date else df
+        df = df.filter(
+            (pl.col("time") >= _naive_utc(window.start))
+            & (pl.col("time") < _naive_utc(window.end))
+        )
         df = df.upsample(time_column="time", every="10m").fill_null(
             strategy="forward"
         )
@@ -376,18 +364,13 @@ class InputData:
         )
 
 
-def read_plant_artifacts(
-    config: Config, reader: InputData
-) -> dict[str, PlantArtifact]:
-    storage = StorageFactory.get_storage(config.artifact)
-    artifacts = {}
-    for plant_id in reader.plant_ids(config.plant_ids):
-        artifact_path = storage.join_path(config.artifact, f"{plant_id}.json")
-        data = storage.read_bytes(artifact_path).decode("utf-8")
-        artifact_dict = pyjson5.decode(data)
-        artifacts[plant_id] = PlantArtifact(
-            parameters=artifact_dict["parameters"],
-            metrics=artifact_dict["metrics"],
-            radiation_type=artifact_dict["radiation_type"],
-        )
-    return artifacts
+def read_plant_artifact(config: InferConfig, plant_id: str) -> PlantArtifact:
+    storage = StorageFactory.get_storage(config.artifact.uri)
+    artifact_path = storage.join_path(config.artifact.uri, f"{plant_id}.json")
+    data = storage.read_bytes(artifact_path).decode("utf-8")
+    artifact_dict = pyjson5.decode(data)
+    return PlantArtifact(
+        parameters=artifact_dict["parameters"],
+        metrics=artifact_dict["metrics"],
+        radiation_type=artifact_dict["radiation_type"],
+    )

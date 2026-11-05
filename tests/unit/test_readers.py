@@ -3,9 +3,10 @@ from pathlib import Path
 
 import polars as pl
 import pytest
+from nwp_core.config import TimeWindow
 
-from app.input_contract import InputUnitMismatchError
-from app.readers import InputData, LocationDataBuilder, LocationInputData
+from rest2_ons.input_contract import InputUnitMismatchError
+from rest2_ons.readers import InputData, LocationDataBuilder, LocationInputData
 
 
 class TestLocationInputData:
@@ -13,7 +14,6 @@ class TestLocationInputData:
 
     def test_apply_unit_conversions_leaves_hpa_pressure_unchanged(self) -> None:
         """Test unit conversions are applied correctly."""
-        # Create minimal input data
         time_data = pl.DataFrame({"time": [datetime(2024, 1, 15, 12, 0)]})
 
         location_data = LocationInputData(
@@ -40,7 +40,6 @@ class TestLocationInputData:
 
         location_data.apply_unit_conversions()
 
-        # Check conversions
         # psurf: already hPa, left unchanged
         assert abs(location_data.psurf["valor"][0] - 1013.25) < 1e-12, (
             "Pressure must not be re-converted"
@@ -71,7 +70,6 @@ class TestLocationInputData:
 
         location_data.calculate_derived_fields()
 
-        # Angstrom exponent should be calculated
         assert location_data.angstrom_exponent is not None
         assert "valor" in location_data.angstrom_exponent.columns
         assert len(location_data.angstrom_exponent) == 1
@@ -88,8 +86,8 @@ class TestInputData:
 
     def test_initialization_with_s3(self) -> None:
         """Test InputData initialization with S3 path."""
-        reader = InputData("s3://bucket/input")
-        assert reader.path == "s3://bucket/input"
+        reader = InputData("s3://test-bucket/input")
+        assert reader.path == "s3://test-bucket/input"
         assert reader.storage is not None
 
     def test_apply_filters_single_value(self) -> None:
@@ -137,7 +135,6 @@ class TestInputData:
 
     def test_filter_forecasting_day(self) -> None:
         """Test filtering by forecasting day."""
-        # Create sample data with multiple forecasting days
         df = pl.DataFrame(
             {
                 "data_hora_previsao": [
@@ -205,7 +202,11 @@ class TestLocationDataBuilder:
         reader = InputData("data/input")
         builder = (
             reader.for_location(-22.5, -45.5)
-            .time_range(datetime(2024, 1, 1), datetime(2024, 1, 31))
+            .time_range(
+                TimeWindow(
+                    start=datetime(2024, 1, 1), end=datetime(2024, 1, 31)
+                )
+            )
             .forecasting_day_filter(1)
         )
 

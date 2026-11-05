@@ -4,7 +4,7 @@ from typing import cast
 import numpy as np
 import pytz
 
-from app.internal.constants import (
+from rest2_ons.internal.constants import (
     EARTH_RADIUS_KM,
     TIMEZONE,
     SOLAR_IRRADIANCE_CONSTANT_W_m2,
@@ -59,9 +59,7 @@ def extraterrestrial_radiation(
 
     phi = np.deg2rad(lat)  # Latitude - North Degrees: Input  -90° - 90°
     psi = -1 * lon
-    if lon < 0:
-        psi = -1 * lon
-    elif lon > 0:
+    if lon > 0:
         psi = 360 - lon
 
     psi_std = np.abs(15.0 * np.round(psi / 15.0))

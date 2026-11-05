@@ -19,7 +19,7 @@ O sistema implementa um pipeline de processamento de dados para previsão de irr
                                          │
                                          ▼
                               ┌─────────────────────┐
-                              │    main.py          │
+                              │    _cli.py          │
                               │  (entry point)      │
                               └──────────┬──────────┘
                                          │
@@ -28,7 +28,7 @@ O sistema implementa um pipeline de processamento de dados para previsão de irr
                          ▼                            ▼
               ┌─────────────────────┐      ┌─────────────────────┐
               │   MODO: train       │      │   MODO: inference   │
-              │   train.py          │      │   inference.py      │
+              │   training.py       │      │   inference.py      │
               └──────────┬──────────┘      └──────────┬──────────┘
                          │                            │
     ┌────────────────────┼────────────────────────────┼──────────────────┐
@@ -80,7 +80,7 @@ O sistema implementa um pipeline de processamento de dados para previsão de irr
 
 ## Componentes Principais
 
-### 1. Entry Point (`main.py`)
+### 1. Entry Point (`src/rest2_ons/_cli.py`)
 
 Ponto de entrada do sistema. Responsabilidades:
 
@@ -89,17 +89,11 @@ Ponto de entrada do sistema. Responsabilidades:
 - Despachar para modo `train` ou `inference`
 - Tratamento de erros de alto nível
 
-### 2. Configuração (`app/internal/config.py`)
+### 2. Configuração (`src/rest2_ons/_config.py`)
 
-Gerencia parsing e validação do arquivo de configuração.
+`TrainConfig` e `InferConfig` definem e validam a configuração dos subcomandos `train` e `infer`.
 
-| Função                 | Descrição                                   |
-| ---------------------- | ------------------------------------------- |
-| `Config.parse()`       | Interpreta e valida configuração completa   |
-| `TimeWindow.parse()`   | Parseia intervalos de tempo ISO 8601        |
-| `Config.from_json()`   | Carrega configuração de arquivo JSONC       |
-
-### 3. Leitura de Dados (`app/readers.py`)
+### 3. Leitura de Dados (`src/rest2_ons/readers.py`)
 
 Carrega dados de entrada de várias fontes.
 
@@ -125,7 +119,7 @@ Entrada: caminho do diretório de dados
 Saída: Polars DataFrames
 ```
 
-### 4. Treinamento (`app/train.py`)
+### 4. Treinamento (`src/rest2_ons/training.py`)
 
 Implementa o pipeline de treinamento com otimização de parâmetros.
 
@@ -149,7 +143,7 @@ Parâmetros:
   - g: parâmetro de assimetria de nuvens, em [0, 1]
 ```
 
-### 5. Inferência (`app/inference.py`)
+### 5. Inferência (`src/rest2_ons/inference.py`)
 
 Aplica o modelo treinado para gerar previsões.
 
@@ -159,7 +153,7 @@ Aplica o modelo treinado para gerar previsões.
 | `_predict_for_plant()`     | Gera previsões para uma usina          |
 | `read_plant_artifacts()`   | Carrega parâmetros treinados do JSON   |
 
-### 6. Modelo REST2 (`app/services/`)
+### 6. Modelo REST2 (`src/rest2_ons/services/`)
 
 Implementa o modelo de radiação solar REST2.
 
@@ -197,7 +191,7 @@ Implementa o modelo de radiação solar REST2.
 └─────────────────────────────────────────────────────┘
 ```
 
-### 7. Utilitários (`app/utils/`)
+### 7. Utilitários (`src/rest2_ons/utils/`)
 
 Funções utilitárias reutilizáveis.
 
@@ -208,7 +202,7 @@ Funções utilitárias reutilizáveis.
 | `data.py`       | Estruturas de dados e funções auxiliares      |
 | `utils.py`      | Geometria solar e conversões                  |
 
-### 8. Abstração de Storage (`app/storage/`)
+### 8. Abstração de Storage (`src/rest2_ons/storage/`)
 
 Fornece uma interface unificada para operações de arquivo entre filesystem local e AWS S3.
 
@@ -251,7 +245,7 @@ A factory seleciona automaticamente o backend apropriado baseado no prefixo do c
 - Caminhos começando com `s3://` usam `S3Backend`
 - Todos os outros caminhos usam `LocalBackend`
 
-### 9. Escrita de Resultados (`app/writers.py`)
+### 9. Escrita de Resultados (`src/rest2_ons/writers.py`)
 
 Exporta resultados em vários formatos.
 
@@ -358,7 +352,7 @@ data/output/
 
 ### Adicionando Novo Algoritmo de Otimização
 
-1. Criar novo otimizador em `train.py`
+1. Criar novo otimizador em `training.py`
 2. Adicionar opção de configuração para seleção de otimizador
 3. Implementar interface comum para otimização de parâmetros
 

@@ -3,7 +3,7 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from app.storage import LocalBackend, S3Backend, StorageFactory
+from rest2_ons.storage import LocalBackend, S3Backend, StorageFactory
 
 
 class TestStorageFactory:
@@ -16,7 +16,7 @@ class TestStorageFactory:
 
     def test_get_s3_storage(self) -> None:
         """Test that S3 URIs return S3Backend."""
-        storage = StorageFactory.get_storage("s3://bucket/path")
+        storage = StorageFactory.get_storage("s3://test-bucket/path")
         assert isinstance(storage, S3Backend)
 
     def test_singleton_local(self) -> None:
@@ -27,8 +27,8 @@ class TestStorageFactory:
 
     def test_singleton_s3(self) -> None:
         """Test that S3 backend is singleton."""
-        storage1 = StorageFactory.get_storage("s3://bucket1/path")
-        storage2 = StorageFactory.get_storage("s3://bucket2/path")
+        storage1 = StorageFactory.get_storage("s3://test-bucket/path")
+        storage2 = StorageFactory.get_storage("s3://example-bucket/path")
         assert storage1 is storage2
 
     def test_clear_cache(self) -> None:
@@ -144,9 +144,9 @@ class TestS3Backend:
         """Test S3 URI parsing."""
         storage = S3Backend()
         bucket, key = storage._parse_s3_uri(
-            "s3://my-bucket/path/to/file.parquet"
+            "s3://example-bucket/path/to/file.parquet"
         )
-        assert bucket == "my-bucket"
+        assert bucket == "example-bucket"
         assert key == "path/to/file.parquet"
 
     def test_parse_s3_uri_invalid(self) -> None:
@@ -159,9 +159,9 @@ class TestS3Backend:
         """Test S3 path joining."""
         storage = S3Backend()
         path = storage.join_path(
-            "s3://bucket/prefix", "subfolder", "file.parquet"
+            "s3://test-bucket/prefix", "subfolder", "file.parquet"
         )
-        assert path == "s3://bucket/prefix/subfolder/file.parquet"
+        assert path == "s3://test-bucket/prefix/subfolder/file.parquet"
 
     def test_join_path_no_prefix(self) -> None:
         """Test path joining without s3:// prefix."""
@@ -175,12 +175,12 @@ class TestS3Backend:
         storage = S3Backend()
 
         # With s3:// prefix
-        uri1 = storage.get_uri("s3://bucket/key")
-        assert uri1 == "s3://bucket/key"
+        uri1 = storage.get_uri("s3://test-bucket/key")
+        assert uri1 == "s3://test-bucket/key"
 
         # Without prefix
-        uri2 = storage.get_uri("bucket/key")
-        assert uri2 == "s3://bucket/key"
+        uri2 = storage.get_uri("test-bucket/key")
+        assert uri2 == "s3://test-bucket/key"
 
     @pytest.mark.s3
     def test_s3_operations_with_moto(self, mock_s3_bucket: str) -> None:
@@ -212,7 +212,7 @@ class TestStorageIntegration:
     def test_factory_returns_correct_backend(self) -> None:
         """Test factory pattern with both backend types."""
         local = StorageFactory.get_storage("/local/path")
-        s3 = StorageFactory.get_storage("s3://bucket/path")
+        s3 = StorageFactory.get_storage("s3://test-bucket/path")
 
         assert type(local).__name__ == "LocalBackend"
         assert type(s3).__name__ == "S3Backend"

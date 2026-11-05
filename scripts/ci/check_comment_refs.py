@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """check_comment_refs.py: un-rottable-reference gate for shipped prose.
 
-Enforces `.claude/rules/comments.md` N3: a comment or docstring in app/,
-main.py or tests/ references only things that cannot rot for a reader, such
-as a symbol, a named test, or a stable external anchor (a provider's data
+Enforces `.claude/rules/comments.md` N3: a comment or docstring in
+src/rest2_ons or tests/ references only things that cannot rot for a reader,
+such as a symbol, a named test, or a stable external anchor (a provider's data
 documentation, a GRIB parameter name, a published reference). Every class
 below rots, and every class is hard:
 
@@ -17,7 +17,7 @@ below rots, and every class is hard:
   symbol instead;
 * a bare internal design-doc section pointer (``design §5``), whose doc
   lives in the gitignored plans/;
-* an ``app/...`` or ``tests/...`` ``.py`` path that no longer resolves.
+* a ``src/...`` or ``tests/...`` ``.py`` path that no longer resolves.
 
 Exit codes: 0 = no violations; 1 = violations (details printed).
 """
@@ -65,11 +65,11 @@ HARD_PATTERNS = [
 
 # The match stops at ``.py`` (``:`` is not in the class), so a ``:NNN`` or
 # ``::symbol`` suffix is dropped before the existence check.
-_REPO_PY_PATH = re.compile(r"\b(?:app|tests)/[\w./-]+\.py\b")
+_REPO_PY_PATH = re.compile(r"\b(?:src|tests)/[\w./-]+\.py\b")
 
 
 def _stale_path_hits(line: str, where: str) -> list[str]:
-    """Flag cited app/tests .py paths that no longer resolve."""
+    """Flag cited src/tests .py paths that no longer resolve."""
     return [
         f"{where}: [stale-path] {path}"
         for path in _REPO_PY_PATH.findall(line)
@@ -89,7 +89,7 @@ def main() -> int:
                 hard.extend(_stale_path_hits(line, where))
 
     if hard:
-        print("FAIL: rot-prone references in app/, main.py or tests/ prose.")
+        print("FAIL: rot-prone references in src/rest2_ons or tests/ prose.")
         print()
         print("\n".join(hard))
         print()
@@ -100,7 +100,7 @@ def main() -> int:
         )
         return 1
 
-    print("OK: no rot-prone references in app/, main.py or tests/ prose.")
+    print("OK: no rot-prone references in src/rest2_ons or tests/ prose.")
     return 0
 
 

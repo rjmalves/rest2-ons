@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-import app
+import rest2_ons
 
 pytestmark = pytest.mark.unit
 
@@ -18,4 +18,4 @@ def test_version_is_the_latest_changelog_release() -> None:
     )
 
     assert releases, "CHANGELOG.md lists no released version"
-    assert app.__version__ == releases[0]
+    assert rest2_ons.__version__ == releases[0]

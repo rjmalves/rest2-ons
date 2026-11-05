@@ -13,8 +13,8 @@ The conventions each gate enforces live in `.claude/rules/`.
 
 | Script                   | Purpose                                                                                                                             |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `check_no_plan_leaks.py` | No plan-structure vocabulary or program ids in shipped docs or in app/, main.py and tests/ prose. `--all` lists every hit.          |
-| `check_comment_refs.py`  | No `file.py:NNN`, `MEMORY.md`, private-tooling, machine-local, `plans/` or cross-repo references in app/, main.py and tests/ prose. |
+| `check_no_plan_leaks.py` | No plan-structure vocabulary or program ids in shipped docs or in src/rest2_ons and tests/ prose. `--all` lists every hit.            |
+| `check_comment_refs.py`  | No `file.py:NNN`, `MEMORY.md`, private-tooling, machine-local, `plans/` or cross-repo references in src/rest2_ons and tests/ prose.   |
 | `check_doc_paths.py`     | Repo-relative paths cited in README, CONTRIBUTING, CLAUDE.md, ARCHITECTURE and METHODOLOGY resolve against the tree.               |
 | `check_comment_bloat.py` | _Advisory_: long comment blocks and repeated clauses, candidates for a comment-skeptic pass.                                        |
 | `quality_report.py`      | _Advisory_: churn, size, long-function, suppression and plan-token hotspot ranking.                                                 |

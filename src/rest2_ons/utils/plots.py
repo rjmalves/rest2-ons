@@ -5,8 +5,8 @@ import plotly.io as pio
 import polars as pl
 from plotly.subplots import make_subplots
 
-from app.inference import PlantResult as PlantInferenceResult
-from app.internal.constants import (
+from rest2_ons.inference import PlantResult as PlantInferenceResult
+from rest2_ons.internal.constants import (
     COD_COLOR,
     DHI_COLOR,
     DNI_COLOR,
@@ -18,7 +18,7 @@ from app.internal.constants import (
     TRAIN_COLOR,
     VALIDATION_COLOR,
 )
-from app.train import PlantResult as PlantTrainResult
+from rest2_ons.training import PlantResult as PlantTrainResult
 
 pio.templates.default = "plotly_white"
 
@@ -171,6 +171,41 @@ def rest2_train_irradiances_scatter_plot(
     return fig
 
 
+def _style_timeseries_figure(
+    fig: go.Figure, title: str, y_max: float
+) -> go.Figure:
+    fig.update_layout(
+        title=title,
+        xaxis_title="Time (UTC)",
+        yaxis_title="Irradiance (W/m²)",
+        legend_title_text="Step",
+    )
+    fig.update_yaxes(
+        title_text="Irradiance (W/m²)",
+        secondary_y=False,
+        range=[0, y_max * 1.05],
+    )
+    fig.update_yaxes(title_text="COD", secondary_y=True, autorange="reversed")
+    fig.update_layout(
+        legend={
+            "orientation": "h",
+            "x": 0.5,
+            "y": -0.2,
+            "xanchor": "center",
+            "bgcolor": "rgba(255, 255, 255, 0.8)",
+        }
+    )
+    fig.update_layout(
+        grid={"rows": 1, "columns": 1},
+    )
+    fig.update_xaxes(
+        dtick="H1",
+        tickformat="%Y-%m-%d %H:%M",
+        tickangle=-45,
+    )
+    return fig
+
+
 def rest2_train_steps_timeseries_plot(
     df: pd.DataFrame,
     target_column: str,
@@ -226,36 +261,9 @@ def rest2_train_steps_timeseries_plot(
         secondary_y=True,
     )
 
-    fig.update_layout(
-        title="REST2 and Measured Data",
-        xaxis_title="Time (UTC)",
-        yaxis_title="Irradiance (W/m²)",
-        legend_title_text="Step",
+    return _style_timeseries_figure(
+        fig, "REST2 and Measured Data", df["measured"].max()
     )
-    fig.update_yaxes(
-        title_text="Irradiance (W/m²)",
-        secondary_y=False,
-        range=[0, df["measured"].max() * 1.05],
-    )
-    fig.update_yaxes(title_text="COD", secondary_y=True, autorange="reversed")
-    fig.update_layout(
-        legend={
-            "orientation": "h",
-            "x": 0.5,
-            "y": -0.2,
-            "xanchor": "center",
-            "bgcolor": "rgba(255, 255, 255, 0.8)",
-        }
-    )
-    fig.update_layout(
-        grid={"rows": 1, "columns": 1},
-    )
-    fig.update_xaxes(
-        dtick="H1",
-        tickformat="%Y-%m-%d %H:%M",
-        tickangle=-45,
-    )
-    return fig
 
 
 def rest2_train_irradiances_timeseries_plot(
@@ -325,36 +333,9 @@ def rest2_train_irradiances_timeseries_plot(
         secondary_y=True,
     )
 
-    fig.update_layout(
-        title="REST2 Irradiances and Measured Data",
-        xaxis_title="Time (UTC)",
-        yaxis_title="Irradiance (W/m²)",
-        legend_title_text="Step",
+    return _style_timeseries_figure(
+        fig, "REST2 Irradiances and Measured Data", df["measured"].max()
     )
-    fig.update_yaxes(
-        title_text="Irradiance (W/m²)",
-        secondary_y=False,
-        range=[0, df["measured"].max() * 1.05],
-    )
-    fig.update_yaxes(title_text="COD", secondary_y=True, autorange="reversed")
-    fig.update_layout(
-        legend={
-            "orientation": "h",
-            "x": 0.5,
-            "y": -0.2,
-            "xanchor": "center",
-            "bgcolor": "rgba(255, 255, 255, 0.8)",
-        }
-    )
-    fig.update_layout(
-        grid={"rows": 1, "columns": 1},
-    )
-    fig.update_xaxes(
-        dtick="H1",
-        tickformat="%Y-%m-%d %H:%M",
-        tickangle=-45,
-    )
-    return fig
 
 
 def rest2_inference_irradiances_timeseries_plot(
@@ -414,36 +395,9 @@ def rest2_inference_irradiances_timeseries_plot(
         secondary_y=True,
     )
 
-    fig.update_layout(
-        title="REST2 Forecasted Irradiances",
-        xaxis_title="Time (UTC)",
-        yaxis_title="Irradiance (W/m²)",
-        legend_title_text="Step",
+    return _style_timeseries_figure(
+        fig, "REST2 Forecasted Irradiances", df[target_column].max()
     )
-    fig.update_yaxes(
-        title_text="Irradiance (W/m²)",
-        secondary_y=False,
-        range=[0, df[target_column].max() * 1.05],
-    )
-    fig.update_yaxes(title_text="COD", secondary_y=True, autorange="reversed")
-    fig.update_layout(
-        legend={
-            "orientation": "h",
-            "x": 0.5,
-            "y": -0.2,
-            "xanchor": "center",
-            "bgcolor": "rgba(255, 255, 255, 0.8)",
-        }
-    )
-    fig.update_layout(
-        grid={"rows": 1, "columns": 1},
-    )
-    fig.update_xaxes(
-        dtick="H1",
-        tickformat="%Y-%m-%d %H:%M",
-        tickangle=-45,
-    )
-    return fig
 
 
 def train_evaluation_plots(

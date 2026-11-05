@@ -1,26 +1,62 @@
-import tempfile
 from collections.abc import Callable, Generator
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import polars as pl
 import pytest
+from nwp_core.config import TimeWindow
 
-from app.internal.config import (
-    Config,
-    PostprocessingConfig,
-    TimeWindow,
-    TimeWindows,
-)
-from app.readers import LocationInputData
-from app.services.radiation import REST2
+from rest2_ons._config import InferConfig, TrainConfig
+from rest2_ons.readers import LocationInputData
+from rest2_ons.services.radiation import REST2
 from tests.fixtures.generate_test_data import (
     generate_atmospheric_data,
     generate_cod_data,
     generate_measured_data,
     generate_usinas_metadata,
 )
+
+WINDOW = TimeWindow(start=datetime(2024, 1, 1), end=datetime(2024, 1, 2))
+
+
+def _shared_fields(tmp_path: Path) -> dict[str, Any]:
+    return {
+        "input": {"uri": str(tmp_path / "input")},
+        "artifact": {"uri": str(tmp_path / "artifacts")},
+        "plant_ids": ["TEST001"],
+        "target_radiation_type": "ghi",
+        "forecasting_day_ahead": 0,
+    }
+
+
+def train_config(tmp_path: Path, **overrides: Any) -> TrainConfig:
+    """A ``TrainConfig`` whose locations sit under ``tmp_path``.
+
+    ``overrides`` replace whole fields and are validated with the rest.
+    """
+    return TrainConfig.model_validate(
+        {
+            **_shared_fields(tmp_path),
+            "training_window": WINDOW,
+            "validation_window": WINDOW,
+            "test_window": WINDOW,
+            **overrides,
+        }
+    )
+
+
+def infer_config(tmp_path: Path, **overrides: Any) -> InferConfig:
+    """An ``InferConfig`` whose locations sit under ``tmp_path``."""
+    return InferConfig.model_validate(
+        {
+            **_shared_fields(tmp_path),
+            "output": {"uri": str(tmp_path / "output")},
+            "window": WINDOW,
+            **overrides,
+        }
+    )
 
 
 @pytest.fixture(scope="session")
@@ -35,54 +71,6 @@ def generated_input_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     generate_measured_data(input_dir)
     generate_usinas_metadata(input_dir)
     return input_dir
-
-
-@pytest.fixture
-def test_data_dir() -> Path:
-    """Path to test fixture data directory."""
-    return Path(__file__).parent / "fixtures" / "data"
-
-
-@pytest.fixture
-def temp_output_dir() -> Generator[Path, None, None]:
-    """Temporary directory for test outputs."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
-
-
-@pytest.fixture
-def sample_time_windows() -> TimeWindows:
-    """Sample time windows configuration for testing."""
-    return TimeWindows(
-        training=TimeWindow(
-            start=datetime(2024, 1, 1), end=datetime(2024, 2, 1)
-        ),
-        validation=TimeWindow(
-            start=datetime(2024, 2, 1), end=datetime(2024, 3, 1)
-        ),
-        test=TimeWindow(start=datetime(2024, 3, 1), end=datetime(2024, 4, 1)),
-        inference=TimeWindow(
-            start=datetime(2024, 4, 1), end=datetime(2024, 5, 1)
-        ),
-    )
-
-
-@pytest.fixture
-def sample_config(
-    test_data_dir: Path, temp_output_dir: Path, sample_time_windows: TimeWindows
-) -> Config:
-    """Sample configuration for testing."""
-    return Config(
-        mode="train",
-        input=str(test_data_dir),
-        output=str(temp_output_dir),
-        artifact=str(temp_output_dir / "artifacts"),
-        time_windows=sample_time_windows,
-        postprocessing=PostprocessingConfig(plots=False),
-        plant_ids=["TEST001"],
-        forecasting_day_ahead=0,
-        target_radiation_type="ghi",
-    )
 
 
 @pytest.fixture
@@ -310,29 +298,9 @@ def mock_s3_bucket() -> Generator[str, None, None]:
         )
 
         # Create test bucket
-        bucket_name = "test-rest2-ons-bucket"
+        bucket_name = "test-bucket"
         s3_client.create_bucket(Bucket=bucket_name)
 
         yield bucket_name
     finally:
         mock.stop()
-
-
-# Markers for different test categories
-def pytest_configure(config: pytest.Config) -> None:
-    """Configure custom pytest markers."""
-    config.addinivalue_line(
-        "markers", "unit: Unit tests for individual components"
-    )
-    config.addinivalue_line(
-        "markers", "integration: Integration tests for full pipeline"
-    )
-    config.addinivalue_line(
-        "markers", "slow: Tests that take a long time to run"
-    )
-    config.addinivalue_line(
-        "markers", "s3: Tests that require S3/moto (AWS simulation)"
-    )
-    config.addinivalue_line(
-        "markers", "plotting: Tests that generate plots (skip on CI if needed)"
-    )

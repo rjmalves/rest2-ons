@@ -1,0 +1,25 @@
+# Locations (input, artifact) must be absolute paths or s3:// URIs.
+# Each window is half-open: start is included and end is excluded.
+
+plant_ids = ["BAFB11"]
+forecasting_day_ahead = 0
+target_radiation_type = "dni"
+plots = true
+
+[input]
+uri = "s3://example-bucket/rest2/input"
+
+[artifact]
+uri = "s3://example-bucket/rest2/artifacts"
+
+[training_window]
+start = "2024-01-01T00:00:00Z"
+end = "2024-02-01T00:00:00Z"
+
+[validation_window]
+start = "2024-02-01T00:00:00Z"
+end = "2024-03-01T00:00:00Z"
+
+[test_window]
+start = "2024-03-01T00:00:00Z"
+end = "2024-04-01T00:00:00Z"

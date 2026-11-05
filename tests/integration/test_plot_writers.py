@@ -1,32 +1,29 @@
 """Plot files land under the configured artifact and output paths."""
 
 from collections.abc import Generator
-from dataclasses import dataclass, replace
-from datetime import datetime
+from dataclasses import dataclass
 from pathlib import Path
 
 import boto3
 import pytest
+from nwp_core.storage import StorageLocation
 
-from app.inference import InferenceManager
-from app.inference import PlantResult as PlantInferenceResult
-from app.internal.config import (
-    Config,
-    PostprocessingConfig,
-    TimeWindow,
-    TimeWindows,
+from rest2_ons._config import InferConfig, TrainConfig
+from rest2_ons.inference import InferenceManager
+from rest2_ons.inference import PlantResult as PlantInferenceResult
+from rest2_ons.readers import InputData
+from rest2_ons.storage import StorageFactory
+from rest2_ons.training import PlantResult as PlantTrainResult
+from rest2_ons.training import TrainManager
+from rest2_ons.utils.data import PlantArtifact
+from rest2_ons.writers import (
+    write_plant_inference_plots,
+    write_plant_train_plots,
 )
-from app.readers import InputData
-from app.storage import StorageFactory
-from app.train import PlantResult as PlantTrainResult
-from app.train import TrainManager
-from app.utils.data import PlantArtifact
-from app.writers import write_plant_inference_plots, write_plant_train_plots
+from tests.conftest import infer_config, train_config
 
 pytestmark = [pytest.mark.integration, pytest.mark.plotting]
 
-START = datetime(2024, 1, 1)
-END = datetime(2024, 1, 1, 23)
 PLANT = "TEST001"
 TRAIN_PLOTS = {
     f"{PLANT}_train_steps_scatter.html",
@@ -39,9 +36,10 @@ INFERENCE_PLOTS = {f"{PLANT}_inference_irradiances_timeseries.html"}
 
 @dataclass(frozen=True)
 class Fitted:
-    config: Config
-    train: dict[str, PlantTrainResult]
-    inference: dict[str, PlantInferenceResult]
+    train_cfg: TrainConfig
+    infer_cfg: InferConfig
+    train: PlantTrainResult
+    inference: PlantInferenceResult
 
 
 @pytest.fixture(scope="module")
@@ -49,32 +47,20 @@ def fitted(
     generated_input_dir: Path, tmp_path_factory: pytest.TempPathFactory
 ) -> Fitted:
     out_dir = tmp_path_factory.mktemp("plot_output")
-    window = TimeWindow(START, END)
-    config = Config(
-        mode="train",
-        input=str(generated_input_dir),
-        output=str(out_dir / "output"),
-        artifact=str(out_dir / "artifacts"),
-        time_windows=TimeWindows(
-            training=window,
-            validation=window,
-            test=window,
-            inference=window,
-        ),
-        postprocessing=PostprocessingConfig(plots=True),
-        plant_ids=[PLANT],
-        forecasting_day_ahead=0,
-        target_radiation_type="ghi",
-    )
-    reader = InputData(config.input)
-    train = TrainManager(config, reader).train()
+    input_location = {"uri": str(generated_input_dir)}
+    train_cfg = train_config(out_dir, input=input_location, plots=True)
+    infer_cfg = infer_config(out_dir, input=input_location, plots=True)
+    reader = InputData(train_cfg.input.uri)
+    train = TrainManager(train_cfg, reader).train_plant(PLANT)
     artifact = PlantArtifact(
-        parameters=train[PLANT].train.parameters,
+        parameters=train.train.parameters,
         metrics={},
         radiation_type="ghi",
     )
-    inference = InferenceManager(config, reader).predict({PLANT: artifact})
-    return Fitted(config, train, inference)
+    inference = InferenceManager(infer_cfg, reader).predict_plant(
+        PLANT, artifact
+    )
+    return Fitted(train_cfg, infer_cfg, train, inference)
 
 
 @pytest.fixture
@@ -85,15 +71,16 @@ def fresh_storage() -> Generator[None, None, None]:
 
 
 def test_plots_written_to_local_paths(fitted: Fitted, tmp_path: Path) -> None:
-    config = replace(
-        fitted.config,
-        artifact=str(tmp_path / "artifacts"),
-        output=str(tmp_path / "output"),
+    train_cfg = fitted.train_cfg.model_copy(
+        update={"artifact": StorageLocation(uri=str(tmp_path / "artifacts"))}
     )
-    reader = InputData(config.input)
+    infer_cfg = fitted.infer_cfg.model_copy(
+        update={"output": StorageLocation(uri=str(tmp_path / "output"))}
+    )
+    reader = InputData(train_cfg.input.uri)
 
-    write_plant_train_plots(config, fitted.train, reader)
-    write_plant_inference_plots(config, fitted.inference, reader)
+    write_plant_train_plots(train_cfg, PLANT, fitted.train, reader)
+    write_plant_inference_plots(infer_cfg, PLANT, fitted.inference, reader)
 
     train_dir = tmp_path / "artifacts" / "plots"
     inference_dir = tmp_path / "output" / "plots"
@@ -106,15 +93,18 @@ def test_plots_written_to_local_paths(fitted: Fitted, tmp_path: Path) -> None:
 @pytest.mark.s3
 @pytest.mark.usefixtures("fresh_storage")
 def test_plots_written_to_s3_uris(fitted: Fitted, mock_s3_bucket: str) -> None:
-    config = replace(
-        fitted.config,
-        artifact=f"s3://{mock_s3_bucket}/artifacts",
-        output=f"s3://{mock_s3_bucket}/output",
+    train_cfg = fitted.train_cfg.model_copy(
+        update={
+            "artifact": StorageLocation(uri=f"s3://{mock_s3_bucket}/artifacts")
+        }
     )
-    reader = InputData(config.input)
+    infer_cfg = fitted.infer_cfg.model_copy(
+        update={"output": StorageLocation(uri=f"s3://{mock_s3_bucket}/output")}
+    )
+    reader = InputData(train_cfg.input.uri)
 
-    write_plant_train_plots(config, fitted.train, reader)
-    write_plant_inference_plots(config, fitted.inference, reader)
+    write_plant_train_plots(train_cfg, PLANT, fitted.train, reader)
+    write_plant_inference_plots(infer_cfg, PLANT, fitted.inference, reader)
 
     s3 = boto3.client("s3", region_name="us-east-1")
     listing = s3.list_objects_v2(Bucket=mock_s3_bucket)

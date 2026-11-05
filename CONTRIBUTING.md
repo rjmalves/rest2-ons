@@ -64,12 +64,12 @@ cd rest2-ons
 git remote add upstream https://github.com/rjmalves/rest2-ons.git
 
 # Instale as dependências com uv
-uv sync --extra dev
+uv sync
 
 # Ou com pip tradicional
 python -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e . --group dev
 ```
 
 O `uv.lock` é versionado, então `uv sync` reproduz o ambiente do CI.
@@ -104,9 +104,9 @@ Seguimos as convenções PEP 8 com algumas customizações definidas em `pyproje
 ### Executando as Verificações
 
 ```bash
-uv run pytest --cov=app                               # testes, com o piso de cobertura
+uv run pytest --cov                                  # testes, com o piso de cobertura
 uv run ruff check . && uv run ruff format --check .   # lint e formatação, árvore inteira
-uv run mypy app main.py tests scripts/ci              # tipos (strict, via pyproject.toml)
+uv run mypy                                          # tipos (strict, caminhos via pyproject.toml)
 uv run python scripts/ci/check_no_plan_leaks.py       # sem vocabulário de planejamento nos artefatos publicados
 uv run python scripts/ci/check_comment_refs.py        # sem referências frágeis na prosa do código
 uv run python scripts/ci/check_doc_paths.py           # todo caminho citado nos docs existe
@@ -138,16 +138,16 @@ código possa segui-los, e são a referência também para pessoas. Em resumo:
 - **Docs nunca fixam uma contagem ou versão à mão.** Declare a regra, ou fixe
   o literal com um teste.
 - **Timestamps são naive e significam UTC.** A regra `DTZ` do ruff vale em
-  `app/` e `main.py`; os testes ficam de fora porque constroem datas naive de
+  `src/rest2_ons`; os testes ficam de fora porque constroem datas naive de
   propósito.
 - **Mensagens do CLI passam pelo `logging`**, nunca por `print` (regra `T20`
   do ruff).
 - **Dependências de execução batem com os imports.** Todo pacote importado
-  por `app/` ou `main.py` está em `[project].dependencies`, e todo pacote
+  por `src/rest2_ons` está em `[project].dependencies`, e todo pacote
   declarado ali é importado pela aplicação ou listado em `LAZILY_IMPORTED`
   (`tests/unit/test_declared_dependencies.py`), quando uma biblioteca o
-  importa por conta própria. Ferramentas de desenvolvimento vão no extra
-  `dev`.
+  importa por conta própria. Ferramentas de desenvolvimento vão no grupo de
+  dependências `dev` (`[dependency-groups]`).
 
 ### Boas Práticas Python
 
@@ -223,7 +223,7 @@ def normalizar(valores: np.ndarray) -> None:
 ```
 tests/
 ├── __init__.py
-├── conftest.py              # Fixtures compartilhadas e configuração pytest
+├── conftest.py              # Fixtures compartilhadas
 ├── fixtures/
 │   ├── data/                # Arquivos de dados de teste
 │   └── generate_test_data.py  # Gerador de dados mock
@@ -249,7 +249,7 @@ make test-s3           # Testes específicos de S3 (requer moto)
 pytest                           # Todos os testes
 pytest tests/unit/               # Testes unitários
 pytest tests/integration/        # Testes de integração
-pytest --cov=app --cov-report=html  # Com cobertura
+pytest --cov --cov-report=html  # Com cobertura
 pytest -v                        # Saída verbosa
 pytest -m "not slow"             # Pular testes lentos
 pytest -m s3                     # Apenas testes S3
@@ -271,7 +271,7 @@ Testes são categorizados usando markers do pytest:
 
 ```python
 import pytest
-from app.readers import InputData
+from rest2_ons.readers import InputData
 
 
 class TestInputData:
@@ -284,8 +284,8 @@ class TestInputData:
 
     def test_initialization_with_s3(self):
         """Testa inicialização do InputData com caminho S3."""
-        reader = InputData("s3://bucket/input")
-        assert reader.path == "s3://bucket/input"
+        reader = InputData("s3://test-bucket/input")
+        assert reader.path == "s3://test-bucket/input"
 
     @pytest.mark.integration
     def test_reads_parquet_files(self, tmp_path, sample_atmospheric_data):
@@ -378,7 +378,7 @@ class REST2:
 
    ```bash
    make check      # Lint, formatação, tipos e gates
-   uv run pytest   # Testes, com o piso de cobertura
+   uv run pytest --cov   # Testes, com o piso de cobertura
    ```
 
 3. **Commits organizados**
@@ -433,7 +433,7 @@ Seguimos [Semantic Versioning](https://semver.org/):
 - **MINOR**: novas funcionalidades compatíveis
 - **PATCH**: correções de bugs compatíveis
 
-Atualize o `app/__init__.py` e `CHANGELOG.md` ao lançar versões; um teste confere que a versão do pacote é a última lançada no changelog.
+Atualize o `src/rest2_ons/_version.py` e `CHANGELOG.md` ao lançar versões; um teste confere que a versão do pacote é a última lançada no changelog.
 
 ---
 

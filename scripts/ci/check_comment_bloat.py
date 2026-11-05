@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_comment_bloat.py: comment-bloat advisory (never fails the build).
 
-Surfaces the mechanically detectable bloat shapes in app/ and main.py as
+Surfaces the mechanically detectable bloat shapes in src/rest2_ons as
 candidates for a comment-skeptic pass (`.claude/rules/comments.md` §1); the
 restatement, drift-copy and contract-versus-bloat calls are left to that pass.
 

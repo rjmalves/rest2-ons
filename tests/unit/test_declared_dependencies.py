@@ -17,9 +17,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # import scan cannot see them. Each entry names a file and the exact code
 # that makes the library import the distribution.
 LAZILY_IMPORTED: dict[str, tuple[str, str]] = {
-    "statsmodels": ("app/utils/plots.py", 'trendline="ols"'),
+    "statsmodels": ("src/rest2_ons/utils/plots.py", 'trendline="ols"'),
     # polars' DataFrame.to_pandas needs pyarrow too.
-    "pyarrow": ("app/storage/local.py", ".to_parquet("),
+    "pyarrow": ("src/rest2_ons/storage/local.py", ".to_parquet("),
 }
 
 
@@ -33,9 +33,7 @@ def _declared_runtime_requirements() -> set[str]:
     except metadata.PackageNotFoundError:
         requirements = None
     if requirements is None:
-        pytest.fail(
-            "rest2-ons is not installed; run uv sync --all-extras --dev"
-        )
+        pytest.fail("rest2-ons is not installed; run uv sync")
     return {
         _normalize(re.split(r"[<>=!~;\[\s]", entry, maxsplit=1)[0])
         for entry in requirements
@@ -45,7 +43,7 @@ def _declared_runtime_requirements() -> set[str]:
 
 def _third_party_modules_imported_by_the_app() -> set[str]:
     imported: set[str] = set()
-    for path in [*(REPO_ROOT / "app").rglob("*.py"), REPO_ROOT / "main.py"]:
+    for path in (REPO_ROOT / "src" / "rest2_ons").rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if isinstance(node, ast.Import):
                 imported.update(
@@ -54,7 +52,7 @@ def _third_party_modules_imported_by_the_app() -> set[str]:
             elif isinstance(node, ast.ImportFrom) and node.level == 0:
                 assert node.module is not None
                 imported.add(node.module.split(".")[0])
-    return imported - sys.stdlib_module_names - {"app", "main"}
+    return imported - sys.stdlib_module_names - {"rest2_ons"}
 
 
 def test_every_third_party_import_is_a_declared_runtime_dependency() -> None:
@@ -86,8 +84,8 @@ def test_every_declared_runtime_dependency_is_used_by_the_app() -> None:
     unused = _declared_runtime_requirements() - imported - set(LAZILY_IMPORTED)
 
     assert not unused, (
-        f"declared in [project].dependencies but never imported by app/ or "
-        f"main.py: {sorted(unused)}; remove it, or list it in "
+        f"declared in [project].dependencies but never imported by "
+        f"src/rest2_ons: {sorted(unused)}; remove it, or list it in "
         f"LAZILY_IMPORTED if a library imports it on the app's behalf"
     )
 

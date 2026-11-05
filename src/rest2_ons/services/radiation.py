@@ -3,11 +3,11 @@ from collections.abc import Callable
 
 import numpy as np
 import polars as pl
+from nwp_core.metrics.skill import mae, me, rmse
 from scipy.optimize import minimize
 
-from app.readers import LocationInputData
-from app.utils.metrics import mae, me, rmse
-from app.utils.utils import extraterrestrial_radiation
+from rest2_ons.readers import LocationInputData
+from rest2_ons.utils.utils import extraterrestrial_radiation
 
 ArrayLike = np.ndarray | float | int
 
@@ -396,14 +396,10 @@ class REST2:
         g3 = (0.17499 + 61.658 * un + 9196.4 * np.power(un, 2)) / (
             1 + 74109.0 * np.power(un, 2)
         )
-        Tn1_middle = (1 + g1 * amw + g2 * np.power(amw, 2)) / (1 + g3 * amw)
-        Tn1_middle[Tn1_middle > 1] = 1
-        Tn1 = Tn1_middle
-        Tn1166_middle = (1 + g1 * 1.66 + g2 * np.power(1.66, 2)) / (
-            1 + g3 * 1.66
-        )
-        Tn1166_middle[Tn1166_middle > 1] = 1
-        Tn1166 = Tn1166_middle
+        Tn1 = (1 + g1 * amw + g2 * np.power(amw, 2)) / (1 + g3 * amw)
+        Tn1[Tn1 > 1] = 1
+        Tn1166 = (1 + g1 * 1.66 + g2 * np.power(1.66, 2)) / (1 + g3 * 1.66)
+        Tn1166[Tn1166 > 1] = 1
         # transmittance for Water Vapor absorption
         h1 = (
             water_vapour
@@ -1002,8 +998,7 @@ class REST2:
             measured, result.get(radiation_type)
         )
         return {
-            name: metric(measured_values, modeled_values)
-            for name, metric in zip(
-                ["ME", "MAE", "RMSE"], [me, mae, rmse], strict=True
-            )
+            "ME": me(measured_values, modeled_values),
+            "MAE": mae(measured_values, modeled_values),
+            "RMSE": rmse(measured_values, modeled_values),
         }

@@ -13,7 +13,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SOURCE_ROOTS = (REPO_ROOT / "app", REPO_ROOT / "main.py")
+SOURCE_ROOTS = (REPO_ROOT / "src" / "rest2_ons",)
 TESTS_ROOT = REPO_ROOT / "tests"
 
 # Docs whose program ids or line references are their content (a frozen

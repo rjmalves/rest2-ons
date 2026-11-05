@@ -2,61 +2,38 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable
-from datetime import datetime
 from pathlib import Path
 
 import pytest
 
-from app.internal.config import (
-    Config,
-    PostprocessingConfig,
-    TimeWindow,
-    TimeWindows,
-)
-from app.readers import InputData
-from app.services.radiation import REST2
-from app.train import TrainManager
+from rest2_ons.readers import InputData
+from rest2_ons.services.radiation import REST2
+from rest2_ons.training import TrainManager
+from tests.conftest import WINDOW, train_config
 
 pytestmark = pytest.mark.integration
-
-START = datetime(2024, 1, 1)
-END = datetime(2024, 1, 1, 23)
-
-
-def make_config(input_dir: Path, out_dir: Path, target: str) -> Config:
-    window = TimeWindow(START, END)
-    return Config(
-        mode="train",
-        input=str(input_dir),
-        output=str(out_dir),
-        artifact=str(out_dir / "artifacts"),
-        time_windows=TimeWindows(
-            training=window,
-            validation=window,
-            test=window,
-            inference=window,
-        ),
-        postprocessing=PostprocessingConfig(plots=False),
-        plant_ids=["TEST001"],
-        forecasting_day_ahead=0,
-        target_radiation_type=target,
-    )
 
 
 def test_in_sample_metrics_score_the_target_type(
     generated_input_dir: Path, tmp_path: Path
 ) -> None:
-    config = make_config(generated_input_dir, tmp_path, "ghi_tracker")
-    result = TrainManager(config, InputData(config.input)).train()["TEST001"]
+    config = train_config(
+        tmp_path,
+        input={"uri": str(generated_input_dir)},
+        target_radiation_type="ghi_tracker",
+    )
+    result = TrainManager(config, InputData(config.input.uri)).train_plant(
+        "TEST001"
+    )
 
     reader = InputData(str(generated_input_dir))
     location_data = (
         reader.for_location(-22.5, -45.5)
-        .time_range(START, END)
+        .time_range(WINDOW)
         .forecasting_day_filter(0)
         .build()
     )
-    measured = reader.read_measured_for_plant("TEST001", START, END)
+    measured = reader.read_measured_for_plant("TEST001", WINDOW)
     rest2 = REST2(location_data)
 
     assert result.validation is not None
