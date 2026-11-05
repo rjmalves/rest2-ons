@@ -29,7 +29,7 @@ def test_aligned_data_reproduces_pre_change_fit(
             dict(zip(REST2.DEFAULT_PARAMETERS, params, strict=True))
         )
         return rmse(
-            np.array(measured["valor"]), np.array(result.get("ghi")["valor"])
+            np.array(result.get("ghi")["valor"]), np.array(measured["valor"])
         )
 
     fitted = rest2.train(measured, radiation_type="ghi")
@@ -67,9 +67,9 @@ def test_partial_overlap_scores_only_the_intersection(
     measured_values = measured["valor"].to_numpy()
     modeled_values = _modeled_values(rest2)
     assert metrics == {
-        "ME": me(measured_values, modeled_values),
-        "MAE": mae(measured_values, modeled_values),
-        "RMSE": rmse(measured_values, modeled_values),
+        "ME": me(modeled_values, measured_values),
+        "MAE": mae(modeled_values, measured_values),
+        "RMSE": rmse(modeled_values, measured_values),
     }
 
 
@@ -87,9 +87,9 @@ def test_offset_series_are_not_paired_by_position(
     measured_values = measured["valor"].to_numpy()[:-1]
     modeled_values = _modeled_values(rest2)[1:]
     assert metrics == {
-        "ME": me(measured_values, modeled_values),
-        "MAE": mae(measured_values, modeled_values),
-        "RMSE": rmse(measured_values, modeled_values),
+        "ME": me(modeled_values, measured_values),
+        "MAE": mae(modeled_values, measured_values),
+        "RMSE": rmse(modeled_values, measured_values),
     }
 
 

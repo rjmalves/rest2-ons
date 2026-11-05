@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `setup.sh` shows pip's output when the install fails, instead of exiting without a message, and removes the partial installation; the minimum Python version is enforced by pip from `pyproject.toml`
 - `setup.sh` error messages print their line breaks instead of a literal `\n`
 - The package reports version 0.1.0, the latest release in this changelog; it reported 1.0.0
+- The mean error (ME) is predicted minus measured, as METHODOLOGY.md defines it; it was measured minus predicted. Artifacts written by earlier versions store ME with the old sign; retrain to refresh them
 
 ---
 

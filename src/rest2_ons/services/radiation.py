@@ -984,7 +984,10 @@ class REST2:
         def f(params: np.ndarray) -> float:
             params_dict = dict(zip(parameter_keys, params, strict=True))
             result = self.convert_radiation(params_dict)
-            return rmse(*_align_on_time(measured, result.get(radiation_type)))
+            measured_values, modeled_values = _align_on_time(
+                measured, result.get(radiation_type)
+            )
+            return rmse(modeled_values, measured_values)
 
         return self._fit(f)
 
@@ -999,7 +1002,7 @@ class REST2:
             measured, result.get(radiation_type)
         )
         return {
-            "ME": me(measured_values, modeled_values),
-            "MAE": mae(measured_values, modeled_values),
-            "RMSE": rmse(measured_values, modeled_values),
+            "ME": me(modeled_values, measured_values),
+            "MAE": mae(modeled_values, measured_values),
+            "RMSE": rmse(modeled_values, measured_values),
         }
