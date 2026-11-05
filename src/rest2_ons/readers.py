@@ -46,7 +46,6 @@ class LocationInputData:
     latitude: float
     longitude: float
 
-    # Raw atmospheric data
     cod: pl.DataFrame
     albedo: pl.DataFrame
     h2o: pl.DataFrame
@@ -57,10 +56,8 @@ class LocationInputData:
     psurf: pl.DataFrame
     temp2m: pl.DataFrame
 
-    # Derived fields (computed from raw data)
     angstrom_exponent: pl.DataFrame | None = None
 
-    # Metadata
     time_range: tuple[datetime, datetime] | None = None
     forecasting_day: int | None = None
 
@@ -350,7 +347,7 @@ class InputData:
         ) / 86400.0
 
         df = df.with_columns(
-            [dia_expr.floor().cast(pl.Int32).alias("dia_previsao")]
+            dia_expr.floor().cast(pl.Int32).alias("dia_previsao")
         )
 
         return (

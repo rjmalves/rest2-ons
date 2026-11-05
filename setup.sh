@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# Default configuration
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 PYTHON_BIN="python3"
 ENTRYPOINT_NAME="rest2-ons"  # as defined in pyproject [project.scripts]
@@ -12,7 +11,6 @@ APP_NAME="rest2-ons"
 # shellcheck disable=SC2016
 readonly CREDENTIAL_HELPER='!f() { [ "$1" = get ] || exit 0; echo username=x-access-token; printf "password=%s\n" "$(cat "$NWP_CORE_READ_TOKEN_FILE")"; }; f'
 
-# Installation modes
 SYSTEM_INSTALL_DIR="/opt/$APP_NAME"
 SYSTEM_BIN_DIR="/usr/local/bin"
 USER_INSTALL_DIR="$HOME/.local/$APP_NAME"
@@ -23,7 +21,6 @@ INSTALL_DIR="$SYSTEM_INSTALL_DIR"
 BIN_DIR="$SYSTEM_BIN_DIR"
 USE_SUDO=1
 
-# Flags
 FORCE=0
 QUIET=0
 USER_MODE=0
@@ -94,7 +91,6 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-# Adjust paths for user mode
 if [[ $USER_MODE -eq 1 ]]; then
 	INSTALL_DIR="$USER_INSTALL_DIR"
 	BIN_DIR="$USER_BIN_DIR"
@@ -104,12 +100,10 @@ else
 	log "System mode: Installing to $INSTALL_DIR (requires sudo)"
 fi
 
-# Check if running with appropriate privileges
 if [[ $USE_SUDO -eq 1 && $EUID -ne 0 ]]; then
 	error "System installation requires sudo. Run: sudo ./setup.sh"
 fi
 
-# Uninstall function
 uninstall() {
 	log "Uninstalling $APP_NAME..."
 	
@@ -133,14 +127,12 @@ if [[ $UNINSTALL -eq 1 ]]; then
 	uninstall
 fi
 
-# Validate Python
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
 	error "$PYTHON_BIN not found in PATH."
 fi
 
 VENV_DIR="$INSTALL_DIR/venv"
 
-# Handle existing installation
 if [[ -d "$INSTALL_DIR" && $FORCE -eq 0 ]]; then
 	error "Installation directory already exists: $INSTALL_DIR\nUse --force to reinstall or --uninstall to remove."
 fi
@@ -184,7 +176,6 @@ if [[ -d "$INSTALL_DIR" ]]; then
 	rm -rf "$INSTALL_DIR"
 fi
 
-# Create installation directory
 log "Creating installation directory: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
 # Leave no half-built installation behind if a later step fails.
@@ -206,10 +197,8 @@ run_quietly_or_show_output env \
 	uv sync --locked --no-dev --no-editable --compile-bytecode --python "$PYTHON_BIN" ||
 	error "Installing $APP_NAME failed; uv's output is above."
 
-# Create bin directory if it doesn't exist
 mkdir -p "$BIN_DIR"
 
-# Create symlink
 SYMLINK_PATH="$BIN_DIR/$ENTRYPOINT_NAME"
 if [[ -L "$SYMLINK_PATH" || -f "$SYMLINK_PATH" ]]; then
 	rm -f "$SYMLINK_PATH"
@@ -218,7 +207,6 @@ fi
 ln -s "$VENV_DIR/bin/$ENTRYPOINT_NAME" "$SYMLINK_PATH"
 log "Created symlink: $SYMLINK_PATH -> $VENV_DIR/bin/$ENTRYPOINT_NAME"
 
-# Set appropriate permissions
 if [[ $USE_SUDO -eq 1 ]]; then
 	# For system install, make it readable by all but writable only by root
 	chmod -R a+rX,go-w "$INSTALL_DIR"
@@ -227,7 +215,6 @@ fi
 trap - EXIT
 log "\n✓ Installation complete!"
 
-# Check if bin directory is in PATH
 case ":$PATH:" in
 	*":$BIN_DIR:"*)
 		log "Run '$ENTRYPOINT_NAME --help' to get started."

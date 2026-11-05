@@ -371,7 +371,6 @@ def test_reads_from_s3(monkeypatch, tmp_path):
 - Novas funções públicas devem ter testes
 - Casos de borda (NaN, vazios, tipos errados) devem ser testados
 - Testes devem ser independentes e reprodutíveis
-- O CI falha abaixo do piso de cobertura definido em `pyproject.toml`
 - As regras completas estão em `.claude/rules/testing.md`
 
 ---

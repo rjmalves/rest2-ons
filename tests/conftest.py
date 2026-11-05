@@ -113,18 +113,7 @@ def sample_atmospheric_data() -> pl.DataFrame:
     """
     np.random.seed(42)
 
-    n_times = 24  # 24 hours
-    base_time = datetime(2024, 1, 15, 0, 0)
-    times = [
-        datetime(
-            base_time.year,
-            base_time.month,
-            base_time.day,
-            h,
-            0,
-        )
-        for h in range(n_times)
-    ]
+    times = [datetime(2024, 1, 15, h) for h in range(24)]
 
     lats = [-23.0, -22.5, -22.0]
     lons = [-46.0, -45.5, -45.0]
@@ -151,18 +140,7 @@ def sample_cod_data() -> pl.DataFrame:
     """Create synthetic cloud optical depth data."""
     np.random.seed(42)
 
-    n_times = 24
-    base_time = datetime(2024, 1, 15, 0, 0)
-    times = [
-        datetime(
-            base_time.year,
-            base_time.month,
-            base_time.day,
-            h,
-            0,
-        )
-        for h in range(n_times)
-    ]
+    times = [datetime(2024, 1, 15, h) for h in range(24)]
 
     lats = [-23.0, -22.5, -22.0]
     lons = [-46.0, -45.5, -45.0]
@@ -182,47 +160,6 @@ def sample_cod_data() -> pl.DataFrame:
                         "valor": cod_value,
                     }
                 )
-
-    return pl.DataFrame(rows)
-
-
-@pytest.fixture
-def sample_measured_data() -> pl.DataFrame:
-    """Create synthetic measured irradiance data."""
-    np.random.seed(42)
-
-    n_times = 24
-    base_time = datetime(2024, 1, 15, 0, 0)
-    times = [
-        datetime(
-            base_time.year,
-            base_time.month,
-            base_time.day,
-            h,
-            0,
-        )
-        for h in range(n_times)
-    ]
-
-    rows = []
-    for time in times:
-        # Simulate solar irradiance pattern (zero at night, peak at noon)
-        hour = time.hour
-        if 6 <= hour <= 18:
-            solar_angle = (hour - 6) * np.pi / 12
-            base_irradiance = 1000 * np.sin(solar_angle)
-            irradiance = base_irradiance + np.random.normal(0, 50)
-            irradiance = max(0, irradiance)
-        else:
-            irradiance = 0.0
-
-        rows.append(
-            {
-                "id_usina": "TEST001",
-                "data_hora_observacao": time,
-                "valor": irradiance,
-            }
-        )
 
     return pl.DataFrame(rows)
 

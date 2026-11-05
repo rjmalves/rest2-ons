@@ -4,7 +4,9 @@
 Every repo-relative path cited in README.md, CONTRIBUTING.md, CLAUDE.md,
 ARCHITECTURE.md, METHODOLOGY.md and docs/**/*.md (minus
 ``_scan.EXEMPT_DOCS``) must resolve against the live tree
-(`.claude/rules/doc-integrity.md` §3). Citing the gitignored ``plans/`` or a
+(`.claude/rules/doc-integrity.md` §3). CHANGELOG.md and DEBT.md are out of
+scope: their entries are records that are never rewritten, so they may cite a
+path that has since been removed. Citing the gitignored ``plans/`` or a
 machine-local ``~/git/...`` path is a violation outright: no reader can
 resolve it. The one allowance is CLAUDE.md, which documents that convention
 by naming those prefixes.

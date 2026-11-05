@@ -25,7 +25,6 @@ class TestFullPipeline:
         input_dir = tmp_path / "input"
         input_dir.mkdir()
 
-        # Create required data files in the declared input units
         files = {
             "albedo.parquet": sample_atmospheric_data,
             "cod.parquet": sample_cod_data,
@@ -55,8 +54,7 @@ class TestFullPipeline:
     ) -> Path:
         """Set up plant metadata."""
         input_dir = tmp_path / "input"
-        if not input_dir.exists():
-            input_dir.mkdir()
+        input_dir.mkdir(exist_ok=True)
 
         sample_usinas_data.write_csv(input_dir / "usinas.csv")
         return input_dir

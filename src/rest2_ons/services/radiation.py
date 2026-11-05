@@ -176,7 +176,6 @@ class REST2:
     time_steps: pl.Series
 
     def __init__(self, location_data: LocationInputData):
-        # Start with DataFrames
         _cod = location_data.cod
         _surface_albedo = location_data.albedo
         _angstrom_exponent = location_data.angstrom_exponent
@@ -188,14 +187,12 @@ class REST2:
         self.lat = location_data.latitude
         self.lon = location_data.longitude
 
-        # Generate solar data
         self.extraterrestrial_radiation, self.zenith_angle = (
             extraterrestrial_radiation(
                 _cod["time"].to_numpy(), self.lat, self.lon
             )
         )
 
-        # Apply variable bounds
         if _angstrom_exponent is None:
             raise ValueError("angstrom_exponent must not be None")
         _angstrom_exponent = _angstrom_exponent.with_columns(
@@ -216,7 +213,6 @@ class REST2:
         )
         _cod = _cod.with_columns(pl.col("valor").clip(*self.COD_BOUNDS))
 
-        # Prepare variables - convert to numpy arrays
         self.angstrom_exponent = self._prepare_variable(_angstrom_exponent)
         self.pressure = self._prepare_variable(_pressure)
         self.water_vapour = self._prepare_variable(_water_vapour)
@@ -248,24 +244,15 @@ class REST2:
         dni_cs: np.ndarray,
         dhi_cs: np.ndarray,
     ) -> REST2Result:
-        ghi_df = self._postprocess_variable(ghi)
-        ghi_tracker_df = self._postprocess_variable(ghi_tracker)
-        dni_df = self._postprocess_variable(dni)
-        dhi_df = self._postprocess_variable(dhi)
-        ghi_cs_df = self._postprocess_variable(ghi_cs)
-        ghi_tracker_cs_df = self._postprocess_variable(ghi_tracker_cs)
-        dni_cs_df = self._postprocess_variable(dni_cs)
-        dhi_cs_df = self._postprocess_variable(dhi_cs)
-
         return REST2Result(
-            ghi_df,
-            ghi_tracker_df,
-            dni_df,
-            dhi_df,
-            ghi_cs_df,
-            ghi_tracker_cs_df,
-            dni_cs_df,
-            dhi_cs_df,
+            self._postprocess_variable(ghi),
+            self._postprocess_variable(ghi_tracker),
+            self._postprocess_variable(dni),
+            self._postprocess_variable(dhi),
+            self._postprocess_variable(ghi_cs),
+            self._postprocess_variable(ghi_tracker_cs),
+            self._postprocess_variable(dni_cs),
+            self._postprocess_variable(dhi_cs),
         )
 
     def _evaluate_air_masses(
@@ -619,12 +606,9 @@ class REST2:
         # grey/white body. The asymmetry factor g is about 0.85 for liquid
         # water clouds (mostly forward scattering) and 0.7 for ice clouds:
         # https://amt.copernicus.org/articles/16/4975/2023/#bib1.bibx53
-        direct_transmittance = np.exp(
-            -1 * cod / (0.5 + mu0)
-        )  # Pg 412 (Direct and Diffuse Transmittance) - Livro Petty, 2006
-        diffuse_transmittance = 1 / (1 + ((1 - g) * cod)) - np.exp(
-            -1 * cod / (0.5 + mu0)
-        )  # Pg 412 (Direct and Diffuse Transmittance) - Livro Petty, 2006
+        # Pg 412 (Direct and Diffuse Transmittance) - Livro Petty, 2006
+        direct_transmittance = np.exp(-1 * cod / (0.5 + mu0))
+        diffuse_transmittance = 1 / (1 + ((1 - g) * cod)) - direct_transmittance
         return CloudTransmittanceResults(
             direct=direct_transmittance, diffuse=diffuse_transmittance
         )
