@@ -95,8 +95,13 @@ def test_extra_artifact_keys_are_ignored(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "body",
-    [b"{", b'{"parameters": 1}', b'{"parameters": {"mu0": "canary"}}'],
-    ids=["not-json", "wrong-shape", "bad-value"],
+    [
+        b"{",
+        b"\x80{}",
+        b'{"parameters": 1}',
+        b'{"parameters": {"mu0": "canary"}}',
+    ],
+    ids=["not-json", "not-utf8", "wrong-shape", "bad-value"],
 )
 def test_malformed_artifact_raises_artifact_format_error(
     tmp_path: Path, body: bytes

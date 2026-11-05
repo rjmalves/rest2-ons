@@ -374,7 +374,7 @@ def read_plant_artifact(storage: Storage, plant_id: str) -> PlantArtifact:
         data = stream.read()
     try:
         return PlantArtifact.model_validate(json.loads(data))
-    except (json.JSONDecodeError, ValidationError):
+    except (json.JSONDecodeError, UnicodeDecodeError, ValidationError):
         raise ArtifactFormatError(
             f"artifact {key} is not a valid rest2 artifact"
         ) from None
