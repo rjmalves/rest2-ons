@@ -4,10 +4,11 @@ from datetime import datetime, timedelta
 import numpy as np
 import polars as pl
 import pytest
+from nwp_core.metrics.skill import mae, me, rmse
 
-from app.readers import LocationInputData
-from app.services.radiation import REST2
-from app.utils.metrics import mae, me, rmse
+from rest2_ons import NoTimeOverlapError
+from rest2_ons.readers import LocationInputData
+from rest2_ons.services.radiation import REST2
 
 PARAMETERS = {"mu0": 0.2, "g": 0.7}
 
@@ -28,7 +29,7 @@ def test_aligned_data_reproduces_pre_change_fit(
             dict(zip(REST2.DEFAULT_PARAMETERS, params, strict=True))
         )
         return rmse(
-            np.array(measured["valor"]), np.array(result.get("ghi")["valor"])
+            np.array(result.get("ghi")["valor"]), np.array(measured["valor"])
         )
 
     fitted = rest2.train(measured, radiation_type="ghi")
@@ -66,9 +67,9 @@ def test_partial_overlap_scores_only_the_intersection(
     measured_values = measured["valor"].to_numpy()
     modeled_values = _modeled_values(rest2)
     assert metrics == {
-        "ME": me(measured_values, modeled_values),
-        "MAE": mae(measured_values, modeled_values),
-        "RMSE": rmse(measured_values, modeled_values),
+        "ME": me(modeled_values, measured_values),
+        "MAE": mae(modeled_values, measured_values),
+        "RMSE": rmse(modeled_values, measured_values),
     }
 
 
@@ -86,9 +87,9 @@ def test_offset_series_are_not_paired_by_position(
     measured_values = measured["valor"].to_numpy()[:-1]
     modeled_values = _modeled_values(rest2)[1:]
     assert metrics == {
-        "ME": me(measured_values, modeled_values),
-        "MAE": mae(measured_values, modeled_values),
-        "RMSE": rmse(measured_values, modeled_values),
+        "ME": me(modeled_values, measured_values),
+        "MAE": mae(modeled_values, measured_values),
+        "RMSE": rmse(modeled_values, measured_values),
     }
 
 
@@ -101,9 +102,9 @@ def test_zero_overlap_raises(
         pl.col("time") + pl.duration(days=2)
     )
 
-    with pytest.raises(ValueError, match="no overlapping timestamps"):
+    with pytest.raises(NoTimeOverlapError, match="no overlapping timestamps"):
         rest2.train(shifted, radiation_type="ghi")
 
     result = rest2.convert_radiation(PARAMETERS)
-    with pytest.raises(ValueError, match="no overlapping timestamps"):
+    with pytest.raises(NoTimeOverlapError, match="no overlapping timestamps"):
         rest2.evaluate(result, shifted, radiation_type="ghi")

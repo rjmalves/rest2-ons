@@ -1,0 +1,159 @@
+{
+  "$defs": {
+    "StorageLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "anonymous": {
+          "default": false,
+          "type": "boolean"
+        },
+        "endpoint_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provider_source": {
+          "default": false,
+          "type": "boolean"
+        },
+        "storage_class": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "uri": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "uri"
+      ],
+      "type": "object"
+    },
+    "StorageSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "connect_timeout_s": {
+          "default": 10.0,
+          "exclusiveMinimum": 0,
+          "maximum": 3600,
+          "type": "number"
+        },
+        "max_attempts": {
+          "default": 5,
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_pool_connections": {
+          "default": 10,
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "read_timeout_s": {
+          "default": 60.0,
+          "exclusiveMinimum": 0,
+          "maximum": 3600,
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "TimeWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "start": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifact": {
+      "$ref": "#/$defs/StorageLocation"
+    },
+    "forecasting_day_ahead": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "input": {
+      "$ref": "#/$defs/StorageLocation"
+    },
+    "output": {
+      "$ref": "#/$defs/StorageLocation"
+    },
+    "plant_ids": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "plots": {
+      "default": false,
+      "type": "boolean"
+    },
+    "storage": {
+      "$ref": "#/$defs/StorageSettings",
+      "default": {
+        "connect_timeout_s": 10.0,
+        "max_attempts": 5,
+        "max_pool_connections": 10,
+        "read_timeout_s": 60.0
+      }
+    },
+    "target_radiation_type": {
+      "enum": [
+        "ghi",
+        "dni",
+        "dhi",
+        "ghi_tracker"
+      ],
+      "type": "string"
+    },
+    "window": {
+      "$ref": "#/$defs/TimeWindow"
+    }
+  },
+  "required": [
+    "input",
+    "artifact",
+    "target_radiation_type",
+    "forecasting_day_ahead",
+    "output",
+    "window"
+  ],
+  "type": "object"
+}

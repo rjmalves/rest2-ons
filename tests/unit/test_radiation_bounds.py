@@ -7,13 +7,13 @@ from collections.abc import Callable
 import numpy as np
 import polars as pl
 import pytest
+from nwp_core.metrics.skill import rmse
 from scipy.optimize import minimize
 
-from app.readers import LocationInputData
-from app.services.radiation import REST2, _align_on_time
-from app.utils.metrics import rmse
+from rest2_ons.readers import LocationInputData
+from rest2_ons.services.radiation import REST2, _align_on_time
 
-LOGGER_NAME = "app.services.radiation"
+LOGGER_NAME = "rest2_ons.services.radiation"
 
 
 def _bound_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:

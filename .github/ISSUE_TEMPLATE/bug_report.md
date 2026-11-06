@@ -33,9 +33,9 @@ Paste relevant error logs here
 ## Environment
 
 - **Python version**: [e.g., 3.11.0]
-- **Package version**: [e.g., 0.1.0]
+- **Package version**: [output of `rest2-ons --version`]
 - **Operating System**: [e.g., Ubuntu 22.04]
-- **Installation method**: [e.g., setup.sh, pip install -e .]
+- **Installation method**: [e.g., uv tool install, setup.sh, make install, Docker]
 - **Docker** (if applicable): [e.g., yes/no, image version]
 
 ## Sample Data
@@ -44,8 +44,19 @@ If possible, attach or describe the data causing the problem (without sensitive 
 
 ## Configuration File
 
-```jsonc
-// Paste your config.jsonc (sanitized) if relevant
+Paste your `train.toml` or `infer.toml` if relevant. Remove bucket names and credentials first.
+
+```toml
+# Paste your sanitized train.toml or infer.toml
+```
+
+## Exit Code and Run Summary
+
+The exit code of the command and the run-summary line it printed to standard output.
+
+```
+exit code:
+run summary:
 ```
 
 ## Additional Context

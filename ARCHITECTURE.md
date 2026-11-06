@@ -1,140 +1,183 @@
 # Arquitetura do Sistema
 
-Este documento descreve a arquitetura do `rest2-ons`, incluindo o fluxo de dados, componentes principais e decisões de design.
+Este documento descreve a arquitetura do `rest2-ons`: o fluxo de dados, os
+módulos e as decisões de design. A instalação, a configuração e os códigos de
+saída estão no [README.md](README.md); as equações do modelo, em
+[METHODOLOGY.md](METHODOLOGY.md).
 
 ## Visão Geral
 
-O sistema implementa um pipeline de processamento de dados para previsão de irradiância solar usando o modelo REST2 com parâmetros otimizados. Opera em dois modos:
+O `rest2-ons` ajusta os parâmetros do modelo REST2 de cada usina contra a
+irradiância medida e prevê a irradiância com os parâmetros ajustados. Há dois
+subcomandos, `rest2-ons train` e `rest2-ons infer`, e uma API em Python com as
+funções `rest2_ons.train` e `rest2_ons.infer`. O subcomando é uma camada fina
+sobre a API: lê a configuração, chama a função e devolve o resultado da
+execução ao `nwp_core.cli`, que o converte em código de saída.
 
-1. **Train**: Otimiza parâmetros do modelo REST2 usando dados medidos históricos
-2. **Inference**: Gera previsões usando parâmetros pré-treinados
+1. **`train`**: otimiza os parâmetros do REST2 de cada usina com dados medidos
+   históricos e grava um artefato por usina.
+2. **`infer`**: lê o artefato de cada usina e grava a previsão da janela pedida.
+
+Cada usina é um item de trabalho independente: a falha de uma usina não impede
+as demais.
 
 ## Diagrama de Fluxo
 
 ```
-                              ┌─────────────────────┐
-                              │   config.jsonc      │
-                              │   (configuração)    │
-                              └──────────┬──────────┘
-                                         │
-                                         ▼
-                              ┌─────────────────────┐
-                              │    main.py          │
-                              │  (entry point)      │
-                              └──────────┬──────────┘
-                                         │
-                         ┌───────────────┴────────────┐
-                         │                            │
-                         ▼                            ▼
-              ┌─────────────────────┐      ┌─────────────────────┐
-              │   MODO: train       │      │   MODO: inference   │
-              │   train.py          │      │   inference.py      │
-              └──────────┬──────────┘      └──────────┬──────────┘
-                         │                            │
-    ┌────────────────────┼────────────────────────────┼──────────────────┐
-    │                    │                            │                  │
-    │                    ▼                            ▼                  │
-    │         ┌─────────────────────┐     ┌─────────────────────┐        │
-    │         │  train_plant()      │     │  predict_plant()    │        │
-    │         │  (por usina)        │     │  (por usina)        │        │
-    │         └──────────┬──────────┘     └──────────┬──────────┘        │
-    │                    │                           │                   │
-    │     ┌──────────────┴──────────────┐            │                   │
-    │     │                             │            │                   │
-    │     ▼                             ▼            ▼                   │
-    │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  │
-    │  │ load_data()      │  │ optimize_params()│  │ apply_rest2()    │  │
-    │  │ readers.py       │  │ minim. L-BFGS-B  │  │ services/rest2   │  │
-    │  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘  │
-    │           │                     │                     │            │
-    │           │                     ▼                     │            │
-    │           │           ┌──────────────────┐            │            │
-    │           │           │  {usina}.json    │◄───────────┤            │
-    │           │           │  (artefato)      │            │            │
-    │           │           └──────────────────┘            │            │
-    │           │                                           │            │
-    │           └──────────────────┬────────────────────────┘            │
-    │                              │                                     │
-    │                              ▼                                     │
-    │                   ┌──────────────────┐                             │
-    │                   │ calculate_       │                             │
-    │                   │ metrics()        │                             │
-    │                   └────────┬─────────┘                             │
-    │                            │                                       │
-    │                            ▼                                       │
-    │                   ┌──────────────────┐                             │
-    │                   │ write_outputs()  │                             │
-    │                   │ writers.py       │                             │
-    │                   └────────┬─────────┘                             │
-    │                            │                                       │
-    └────────────────────────────┼───────────────────────────────────────┘
-                                 │
+   TOML (--config)      variáveis REST2_ONS_*      opções do CLI
+          │                      │                      │
+          └──────────────────────┼──────────────────────┘
                                  ▼
                       ┌─────────────────────┐
-                      │  SAÍDA              │
-                      │  ├─ {usina}.parquet │
-                      │  ├─ {usina}.json    │
-                      │  └─ plots/*.html    │
+                      │      _cli.py        │  subcomandos train e infer
+                      │  load_config()      │  (click + nwp_core.cli)
+                      └──────────┬──────────┘
+                                 ▼
+                      ┌─────────────────────┐
+                      │     _config.py      │  TrainConfig / InferConfig
+                      └──────────┬──────────┘
+                                 ▼
+                      ┌─────────────────────┐
+                      │      _api.py        │  train() / infer()
+                      │  open_storage()     │  abre cada local uma vez
+                      │  usinas.csv         │  lista de usinas, se plant_ids
+                      │                     │  não está definido
+                      │  run_items()        │  um item de trabalho por usina
+                      └──────────┬──────────┘
+                                 │ para cada usina
+                 ┌───────────────┴────────────────┐
+                 ▼                                ▼
+      ┌─────────────────────┐          ┌─────────────────────┐
+      │     readers.py      │          │     readers.py      │
+      │  InputData          │          │  InputData e        │
+      │                     │          │  read_plant_artifact│
+      └──────────┬──────────┘          └──────────┬──────────┘
+                 ▼                                ▼
+      ┌─────────────────────┐          ┌─────────────────────┐
+      │    training.py      │          │    inference.py     │
+      │  train_plant()      │          │  predict_plant()    │
+      └──────────┬──────────┘          └──────────┬──────────┘
+                 └───────────────┬────────────────┘
+                                 ▼
+                      ┌─────────────────────┐
+                      │ services/radiation  │  modelo REST2, métricas
+                      └──────────┬──────────┘
+                                 ▼
+                      ┌─────────────────────┐
+                      │     writers.py      │  chaves de _keys.py
+                      └──────────┬──────────┘
+                                 ▼
+                      ┌─────────────────────┐
+                      │  armazenamento      │  disco local ou s3://
+                      │  {usina}.json       │  artefato (train)
+                      │  {usina}.parquet    │  previsão (infer)
+                      │  plots/*.html       │  gráficos, se plots = true
                       └─────────────────────┘
+
+   Na saída padrão: o resumo da execução, uma linha JSON (ver README.md).
 ```
 
 ## Componentes Principais
 
-### 1. Entry Point (`main.py`)
+### 1. Entrada de linha de comando (`src/rest2_ons/_cli.py`)
 
-Ponto de entrada do sistema. Responsabilidades:
+Define o grupo `rest2-ons` e os subcomandos `train` e `infer` com `click`.
+Cada subcomando carrega a configuração com `nwp_core.config.load_config` e o
+prefixo `REST2_ONS`, registra os valores secretos para que os logs os
+ocultem e chama a API. A precedência das fontes e os códigos de saída estão no
+[README.md](README.md).
 
-- Parsear argumentos de linha de comando
-- Carregar configuração do arquivo JSONC
-- Despachar para modo `train` ou `inference`
-- Tratamento de erros de alto nível
+| Símbolo  | Descrição                                           |
+| -------- | --------------------------------------------------- |
+| `cli()`  | Grupo `click` com os dois subcomandos               |
+| `main()` | Ponto de entrada do console script; roda o `run_cli`|
 
-### 2. Configuração (`app/internal/config.py`)
+### 2. Configuração (`src/rest2_ons/_config.py`)
 
-Gerencia parsing e validação do arquivo de configuração.
+`TrainConfig` e `InferConfig` definem e validam a configuração dos
+subcomandos `train` e `infer`. Compartilham o local `input`, o local
+`artifact`, `plant_ids`, `target_radiation_type`, `forecasting_day_ahead`,
+`plots` e `storage`; cada um acrescenta as janelas de tempo do seu subcomando.
+O esquema JSON de cada modelo é fixado em `tests/surface/`.
 
-| Função                 | Descrição                                   |
-| ---------------------- | ------------------------------------------- |
-| `Config.parse()`       | Interpreta e valida configuração completa   |
-| `TimeWindow.parse()`   | Parseia intervalos de tempo ISO 8601        |
-| `Config.from_json()`   | Carrega configuração de arquivo JSONC       |
+### 3. API (`src/rest2_ons/_api.py`)
 
-### 3. Leitura de Dados (`app/readers.py`)
+`train()` e `infer()` são a API pública. Cada uma:
 
-Carrega dados de entrada de várias fontes.
+1. cria o contexto da execução (`RunContext`);
+2. abre cada local de armazenamento uma vez com `open_storage`;
+3. lê o `usinas.csv` quando `plant_ids` não está definido;
+4. executa um item de trabalho por usina com `run_items`, em sequência.
+
+Uma usina que levanta exceção termina como `FAILED`, as outras continuam e o
+`RunFailedError` final carrega o resultado de todos os itens. O formato do
+resumo e o código de saída 3 estão no [README.md](README.md).
+
+### 4. Erros e chaves (`_errors.py`, `_keys.py`)
+
+`_errors.py` guarda a hierarquia de erros do programa, com raiz em
+`Rest2Error`; os erros do `usinas.csv` ausente ou malformado são fatais para a
+execução, os demais isolam uma usina. `_keys.py` compõe as chaves de cada
+usina (`{id}.json`, `{id}.parquet`, `plots/{id}_*.html`) e recusa um
+identificador de usina que não seria um componente válido de chave.
+
+| Símbolo            | Descrição                                          |
+| ------------------ | -------------------------------------------------- |
+| `artifact_key()`   | Chave do artefato de parâmetros                    |
+| `output_key()`     | Chave da previsão                                  |
+| `plot_key()`       | Chave de um gráfico                                |
+| `check_plant_id()` | Valida o identificador antes de qualquer gravação  |
+
+### 5. Leitura de Dados (`src/rest2_ons/readers.py`)
+
+`InputData` recebe um `Storage` e carrega as entradas do local `input`.
 
 ```
-Entrada: caminho do diretório de dados
+Entrada: Storage do local input
     │
     ▼
 ┌─────────────────────────────────┐
-│ read_usinas()                   │ → Carrega metadados das usinas (CSV)
+│ read_usinas() / plant_ids()     │ → metadados das usinas (CSV)
 └─────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────┐
-│ for_location().build()          │ → Carrega previsões CAMS (Parquet)
+│ for_location().build()          │ → previsões CAMS e COD (Parquet)
 └─────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────┐
-│ read_measured_for_plant()       │ → Carrega medições (Parquet)
+│ read_measured_for_plant()       │ → medições (Parquet)
 └─────────────────────────────────┘
     │
     ▼
-Saída: Polars DataFrames
+Saída: Polars DataFrames e LocationInputData
 ```
 
-### 4. Treinamento (`app/train.py`)
+| Símbolo                        | Descrição                                           |
+| ------------------------------ | --------------------------------------------------- |
+| `InputData`                    | Leitor das entradas de um local                     |
+| `LocationDataBuilder`          | Monta os dados de um ponto de grade e uma janela    |
+| `LocationInputData`            | Séries do local, já na unidade das equações         |
+| `read_plant_artifact()`        | Lê e valida o artefato de uma usina                 |
 
-Implementa o pipeline de treinamento com otimização de parâmetros.
+`input_contract.py` declara a unidade de cada arquivo de entrada
+(`DECLARED_UNITS`) e rejeita um arquivo fora da faixa plausível com
+`validate_input_units()`; `LocationInputData.apply_unit_conversions` converte
+para as unidades das equações. A tabela de unidades está em
+[METHODOLOGY.md](METHODOLOGY.md#input-data-requirements).
 
-| Função                  | Descrição                              |
-| ----------------------- | -------------------------------------- |
-| `TrainManager.train()`  | Orquestra treinamento para todas usinas|
-| `_train_for_plant()`    | Processa uma usina                     |
-| `_train_rest2()`        | Executa otimização L-BFGS-B            |
-| `_evaluate_rest2()`     | Calcula ME, MAE, RMSE                  |
+### 6. Treinamento (`src/rest2_ons/training.py`)
+
+`TrainManager.train_plant()` processa uma usina: ajusta os parâmetros na
+janela de treino e avalia nas janelas de validação e de teste.
+
+| Símbolo                       | Descrição                                  |
+| ----------------------------- | ------------------------------------------ |
+| `TrainManager.train_plant()`  | Ajusta e avalia uma usina                  |
+| `TrainManager._train_rest2()` | Executa a otimização L-BFGS-B              |
+| `TrainManager._evaluate_rest2()` | Calcula ME, MAE e RMSE de uma janela    |
+| `PlantResult`                 | Resultado de treino, validação e teste     |
 
 #### Algoritmo de Otimização
 
@@ -149,23 +192,22 @@ Parâmetros:
   - g: parâmetro de assimetria de nuvens, em [0, 1]
 ```
 
-### 5. Inferência (`app/inference.py`)
+### 7. Inferência (`src/rest2_ons/inference.py`)
 
-Aplica o modelo treinado para gerar previsões.
+O gerenciador de inferência aplica o artefato de uma usina para prever a
+janela configurada.
 
-| Função                     | Descrição                              |
-| -------------------------- | -------------------------------------- |
-| `InferenceManager.predict()` | Orquestra inferência para todas usinas |
-| `_predict_for_plant()`     | Gera previsões para uma usina          |
-| `read_plant_artifacts()`   | Carrega parâmetros treinados do JSON   |
+| Símbolo           | Descrição                                           |
+| ----------------- | --------------------------------------------------- |
+| `predict_plant()` | Método do gerenciador: prevê a janela de uma usina  |
+| `PlantResult`     | Previsão de uma usina; `chosen_radiation()` seleciona o tipo configurado |
 
-### 6. Modelo REST2 (`app/services/`)
+### 8. Modelo REST2 (`src/rest2_ons/services/`)
 
-Implementa o modelo de radiação solar REST2.
-
-| Módulo              | Descrição                                |
-| ------------------- | ---------------------------------------- |
-| `radiation.py`      | Implementação principal do modelo REST2  |
+`radiation.py` implementa o modelo de radiação solar REST2 na classe `REST2`:
+`REST2.train()` ajusta os parâmetros, `REST2.evaluate()` aplica-os a uma
+janela e `REST2.convert_radiation()` devolve o tipo de radiação pedido. As
+métricas ME, MAE e RMSE vêm de `nwp_core.metrics.skill`.
 
 #### Componentes do Modelo REST2
 
@@ -197,76 +239,44 @@ Implementa o modelo de radiação solar REST2.
 └─────────────────────────────────────────────────────┘
 ```
 
-### 7. Utilitários (`app/utils/`)
+### 9. Utilitários (`src/rest2_ons/utils/`)
 
-Funções utilitárias reutilizáveis.
+| Módulo       | Descrição                                                    |
+| ------------ | ------------------------------------------------------------ |
+| `plots.py`   | Geração de gráficos interativos com Plotly                   |
+| `data.py`    | `PlantArtifact` (formato do artefato) e coordenadas da usina |
+| `utils.py`   | Geometria solar: `haversine_distance()` e `extraterrestrial_radiation()` |
 
-| Módulo          | Descrição                                     |
-| --------------- | --------------------------------------------- |
-| `metrics.py`    | Cálculo de métricas de erro (ME, MAE, RMSE)   |
-| `plots.py`      | Geração de gráficos interativos com Plotly    |
-| `data.py`       | Estruturas de dados e funções auxiliares      |
-| `utils.py`      | Geometria solar e conversões                  |
+`internal/constants.py` guarda as constantes do modelo e as cores dos gráficos.
 
-### 8. Abstração de Storage (`app/storage/`)
+### 10. Armazenamento (`nwp_core.storage`)
 
-Fornece uma interface unificada para operações de arquivo entre filesystem local e AWS S3.
+Toda leitura e escrita passa por `nwp_core.storage`, que abre um caminho local
+absoluto ou uma URI `s3://`. As regras dos locais e a variável de ambiente de
+cada campo estão no [README.md](README.md). As chaves por usina são compostas
+em `src/rest2_ons/_keys.py`.
 
-| Módulo       | Descrição                                        |
-| ------------ | ------------------------------------------------ |
-| `base.py`    | Interface abstrata `StorageBackend`              |
-| `local.py`   | Implementação para filesystem local              |
-| `s3.py`      | Implementação AWS S3 usando boto3/s3fs           |
-| `factory.py` | `StorageFactory` para seleção automática de backend |
+### 11. Escrita de Resultados (`src/rest2_ons/writers.py`)
 
-#### Arquitetura de Storage
+Cada função grava no `Storage` que recebe e devolve os recibos de escrita; a
+API soma os bytes e os artefatos gravados no item da usina.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     StorageFactory                          │
-│  get_storage(path) → StorageBackend                        │
-└───────────────────┬─────────────────────────────────────────┘
-                    │
-        ┌───────────┴───────────┐
-        │                       │
-        ▼                       ▼
-┌───────────────────┐   ┌───────────────────┐
-│   LocalBackend    │   │    S3Backend      │
-│   (path: /...)    │   │   (path: s3://...)│
-├───────────────────┤   ├───────────────────┤
-│ read_parquet()    │   │ read_parquet()    │
-│ write_parquet()   │   │ write_parquet()   │
-│ read_bytes()      │   │ read_bytes()      │
-│ write_bytes()     │   │ write_bytes()     │
-│ exists()          │   │ exists()          │
-│ makedirs()        │   │ makedirs()        │
-│ list_files()      │   │ list_files()      │
-│ delete()          │   │ delete()          │
-│ join_path()       │   │ join_path()       │
-│ get_uri()         │   │ get_uri()         │
-└───────────────────┘   └───────────────────┘
-```
-
-A factory seleciona automaticamente o backend apropriado baseado no prefixo do caminho:
-- Caminhos começando com `s3://` usam `S3Backend`
-- Todos os outros caminhos usam `LocalBackend`
-
-### 9. Escrita de Resultados (`app/writers.py`)
-
-Exporta resultados em vários formatos.
-
-| Função                       | Descrição                              |
-| ---------------------------- | -------------------------------------- |
-| `write_plant_artifacts()`    | Salva parâmetros treinados em JSON     |
-| `write_inference_results()`  | Exporta previsões para Parquet         |
-| `write_plant_train_plots()`  | Gera gráficos HTML de visualização     |
+| Símbolo                          | Descrição                                   |
+| -------------------------------- | ------------------------------------------- |
+| `write_plant_artifact()`         | Salva os parâmetros treinados em JSON       |
+| `write_plant_train_plots()`      | Gera os gráficos HTML do treino             |
+| `write_plant_output()`           | Exporta a previsão para Parquet             |
+| `write_plant_inference_plots()`  | Gera os gráficos HTML da inferência         |
 
 ## Fluxo de Dados
 
 ### Entrada
 
+Os arquivos do local `input`; a lista completa e as colunas estão no
+[README.md](README.md#dados-de-entrada).
+
 ```
-data/input/
+input/
 ├── usinas.csv                    # Metadados das usinas
 ├── albedo.parquet                # Albedo de superfície (CAMS)
 ├── cod.parquet                   # Profundidade óptica de nuvens
@@ -277,31 +287,35 @@ data/input/
 ├── od670.parquet                 # AOD em 670nm (CAMS)
 ├── psurf.parquet                 # Pressão de superfície (CAMS)
 ├── temp.parquet                  # Temperatura (CAMS)
-└── measured_irradiance.parquet   # Medições in-loco
+└── measured_irradiance.parquet   # Medições in-loco (só no treino)
 ```
 
-### Processamento Interno
+### Processamento por usina
 
 ```
-readers.py
+_api.py: um item de trabalho por usina
     │
-    ├── read_usinas() → pl.DataFrame
-    ├── for_location().build() → LocationInputData
-    └── read_measured_for_plant() → pl.DataFrame
+    ├── check_plant_id()             → recusa um id inválido
+    ├── train:  TrainManager.train_plant() → parâmetros e métricas
+    │           write_plant_artifact()     → {id}.json
+    ├── infer:  read_plant_artifact()      → parâmetros ajustados
+    │           predict_plant()            → previsão
+    │           write_plant_output()       → {id}.parquet
+    └── plots:  gráficos, se plots = true
 ```
 
 ### Saída
 
 ```
-data/artifacts/
+artifact/
 ├── {id_usina}.json              # Parâmetros treinados + métricas
 └── plots/
-    └── {id_usina}_*.html        # Gráficos de treinamento
+    └── {id_usina}_train_*.html  # Gráficos de treinamento
 
-data/output/
+output/
 ├── {id_usina}.parquet           # Previsões
 └── plots/
-    └── {id_usina}_*.html        # Gráficos de inferência
+    └── {id_usina}_inference_*.html  # Gráficos de inferência
 ```
 
 ## Decisões de Design
@@ -309,7 +323,7 @@ data/output/
 ### Por que Polars ao invés de Pandas?
 
 - **Performance**: Mais rápido para grandes datasets (milhões de linhas)
-- **Eficiência de memória**: Avaliação lazy e armazenamento colunar
+- **Eficiência de memória**: Armazenamento colunar
 - **Segurança de tipos**: Tipagem forte detecta erros cedo
 - **API moderna**: Sintaxe mais limpa para operações comuns
 
@@ -320,12 +334,13 @@ data/output/
 - **Disponibilidade**: Embutido no scipy, implementação bem testada
 - **Limites**: Os limites mantêm mu0 e g em suas faixas físicas
 
-### Por que Processar Usinas Individualmente?
+### Por que um Item de Trabalho por Usina?
 
-- **Paralelização**: Trivial de paralelizar com multiprocessing
-- **Isolamento de falhas**: Erro em uma usina não afeta outras
+- **Isolamento de falhas**: Uma usina que falha termina como `FAILED`, as outras continuam e ficam gravadas, e a execução encerra com código 3
+- **Resultado por usina**: O resumo da execução lista o resultado de cada item
 - **Debugging**: Mais fácil rastrear e debugar problemas por usina
-- **Flexibilidade**: Diferentes usinas podem ter configurações diferentes
+- **Flexibilidade**: `plant_ids` restringe a execução a um subconjunto de usinas
+- **Sequencial**: Os itens rodam em sequência; paralelizar exigiria uma mudança em `_api.py`
 
 ### Por que JSON para Artefatos?
 
@@ -353,14 +368,10 @@ data/output/
 ### Adicionando Novo Tipo de Radiação
 
 1. Adicionar cálculo em `services/radiation.py`
-2. Atualizar enum `target_radiation_type` na config
+2. Adicionar o valor a `RadiationType` em `src/rest2_ons/_config.py`, que
+   tipa tanto `target_radiation_type` quanto o campo `radiation_type` do
+   artefato
 3. Adicionar tratamento de saída correspondente
-
-### Adicionando Novo Algoritmo de Otimização
-
-1. Criar novo otimizador em `train.py`
-2. Adicionar opção de configuração para seleção de otimizador
-3. Implementar interface comum para otimização de parâmetros
 
 ## Dependências
 
@@ -369,18 +380,18 @@ As dependências de execução e suas versões mínimas são declaradas em
 papel de cada uma.
 
 ```
-numpy        Equações do REST2 e operações com arrays
-polars       Leitura, filtragem e junção das séries de entrada
-pandas       Escrita de Parquet e preparo dos dados dos gráficos
-pyarrow      Motor de Parquet usado pelo pandas
-scipy        Calibração dos parâmetros (L-BFGS-B)
-pytz         Conversão de UTC para a hora local na geometria solar
-pyjson5      Configuração JSONC e artefatos de parâmetros calibrados
-plotly       Gráficos HTML interativos
-statsmodels  Linha de tendência OLS dos gráficos de dispersão (plotly)
-boto3        Cliente S3
-botocore     Erros do cliente S3
-s3fs         Sistema de arquivos S3 para Polars e Pandas
+numpy         Equações do REST2 e operações com arrays
+polars        Leitura, filtragem e junção das séries de entrada
+pandas        Escrita de Parquet e preparo dos dados dos gráficos
+pyarrow       Motor de Parquet usado pelo pandas
+scipy         Calibração dos parâmetros (L-BFGS-B)
+pytz          Conversão de UTC para a hora local na geometria solar
+plotly        Gráficos HTML interativos
+statsmodels   Linha de tendência OLS dos gráficos de dispersão (plotly)
+click         Subcomandos train e infer
+pydantic      Modelos da configuração e do artefato
+pydantic-core Erros de validação personalizados da configuração
+nwp-core      Armazenamento, configuração, CLI, execução, logs e métricas compartilhados
 ```
 
 ## Considerações de Performance
@@ -397,16 +408,11 @@ s3fs         Sistema de arquivos S3 para Polars e Pandas
 
 ### Gargalos
 
-1. **Carga de Dados**: Arquivos Parquet grandes podem ser lentos
-   - Mitigação: Usar predicate pushdown, seleção de colunas
-2. **Iterações de Otimização**: L-BFGS-B pode requerer muitas iterações
-   - Mitigação: Bons valores iniciais, tolerância de convergência
-3. **Geração de Gráficos**: Grandes datasets criam arquivos HTML pesados
-   - Mitigação: Downsample para visualização
-
-### Otimizações Futuras
-
-- Processamento paralelo de usinas com multiprocessing
-- Avaliação lazy para transformações de dados
-- Cache de resultados intermediários
-- Processamento streaming para datasets muito grandes
+1. **Carga de Dados**: cada arquivo de entrada é lido inteiro na memória
+   (`Storage.open_read` seguido de `pl.read_parquet` ou `pl.read_csv`), dentro
+   do item de cada usina, e só depois filtrado pela usina e pela janela. O
+   custo cresce com o tamanho do arquivo, não com a janela pedida.
+2. **Iterações de Otimização**: o L-BFGS-B parte de `REST2.DEFAULT_PARAMETERS`
+   e usa as tolerâncias padrão do scipy.
+3. **Geração de Gráficos**: os gráficos HTML incluem todos os pontos da série,
+   então séries longas geram arquivos grandes.

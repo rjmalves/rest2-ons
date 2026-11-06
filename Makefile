@@ -28,7 +28,7 @@ help:
 
 install:
 	@echo "Installing rest2-ons system-wide..."
-	sudo ./setup.sh
+	sudo --preserve-env=NWP_CORE_READ_TOKEN_FILE ./setup.sh
 
 install-user:
 	@echo "Installing rest2-ons for current user..."
@@ -36,7 +36,7 @@ install-user:
 
 reinstall:
 	@echo "Reinstalling rest2-ons..."
-	sudo ./setup.sh --force
+	sudo --preserve-env=NWP_CORE_READ_TOKEN_FILE ./setup.sh --force
 
 uninstall:
 	@echo "Uninstalling rest2-ons (system)..."
@@ -68,7 +68,7 @@ test-integration:
 
 test-cov:
 	@echo "Running tests with coverage..."
-	@.venv/bin/pytest --cov=app --cov-report=html --cov-report=term -v
+	@.venv/bin/pytest --cov --cov-report=html --cov-report=term -v
 	@echo "Coverage report generated in htmlcov/"
 
 test-s3:
@@ -85,7 +85,7 @@ format:
 
 typecheck:
 	@echo "Type-checking..."
-	@.venv/bin/mypy app main.py tests scripts/ci
+	@.venv/bin/mypy
 
 check:
 	@./scripts/pre-commit

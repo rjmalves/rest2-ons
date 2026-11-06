@@ -23,13 +23,17 @@ style lives in the global Python rules; these are the repo-specific rules.
 ## Repository-only, offline
 
 - No test reaches the network or a real bucket. S3 runs against moto through
-  the `mock_s3_bucket` fixture in `tests/conftest.py`, and such tests carry
-  `@pytest.mark.s3`.
+  nwp-core's `isolate_aws_env` and `moto_location()` from
+  `nwp_core._testing.storage`, and such tests carry `@pytest.mark.s3`.
 - No test reads the local `data/` working directory or resolves a path
   through the home directory. `*.parquet`, `*.csv` and `*.txt` are
   gitignored, so input data is synthetic: built in the test, in
   `tests/conftest.py` or by `tests/fixtures/generate_test_data.py`.
 - Test output goes to `tmp_path`; no test writes into the repo tree.
+- A committed compatibility fixture is allowed when it pins a format written
+  by a library the project no longer depends on, and it is never regenerated:
+  regenerating it would pin what the current writer produces, not what the old
+  one did.
 
 ## Test architecture
 
@@ -39,8 +43,9 @@ style lives in the global Python rules; these are the repo-specific rules.
 - **Datetimes are naive and mean UTC**, the same contract as the input data.
   ruff `DTZ` is off under `tests/` for this reason; never attach a local
   timezone to a test input.
-- **Markers are declared in `pytest.ini`** (`--strict-markers` rejects any
-  other): `unit`, `integration`, `slow`, `s3` and `plotting`.
+- **Markers are declared in `[tool.pytest.ini_options]` in `pyproject.toml`**
+  (`--strict-markers` rejects any other): `unit`, `integration`, `slow`, `s3`
+  and `plotting`.
 
 ## What a change ships with
 

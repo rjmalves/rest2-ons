@@ -7,8 +7,8 @@ from datetime import datetime
 import polars as pl
 import pytest
 
-from app.readers import LocationInputData
-from app.services.radiation import REST2, REST2Result
+from rest2_ons.readers import LocationInputData
+from rest2_ons.services.radiation import REST2, REST2Result
 
 RADIATION_TYPES = [
     "ghi",

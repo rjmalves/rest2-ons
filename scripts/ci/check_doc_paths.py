@@ -4,7 +4,9 @@
 Every repo-relative path cited in README.md, CONTRIBUTING.md, CLAUDE.md,
 ARCHITECTURE.md, METHODOLOGY.md and docs/**/*.md (minus
 ``_scan.EXEMPT_DOCS``) must resolve against the live tree
-(`.claude/rules/doc-integrity.md` §3). Citing the gitignored ``plans/`` or a
+(`.claude/rules/doc-integrity.md` §3). CHANGELOG.md and DEBT.md are out of
+scope: their entries are records that are never rewritten, so they may cite a
+path that has since been removed. Citing the gitignored ``plans/`` or a
 machine-local ``~/git/...`` path is a violation outright: no reader can
 resolve it. The one allowance is CLAUDE.md, which documents that convention
 by naming those prefixes.
@@ -26,22 +28,31 @@ from pathlib import Path
 from _scan import REPO_ROOT, rel, shipped_docs
 
 TOKEN = re.compile(r"`([^`\s]+)`")
-PATH_PREFIXES = ("app/", "docs/", "scripts/", "tests/", ".github/", ".claude/")
+PATH_PREFIXES = (
+    "src/",
+    "docs/",
+    "scripts/",
+    "tests/",
+    ".github/",
+    ".claude/",
+    "ci/",
+)
 ROOT_FILES = {
+    ".dockerignore",
     "ARCHITECTURE.md",
     "CHANGELOG.md",
     "CLAUDE.md",
-    "config.example.jsonc",
     "CONTRIBUTING.md",
+    "DEBT.md",
     "Dockerfile",
+    "infer.example.toml",
     "LICENSE",
-    "main.py",
     "Makefile",
     "METHODOLOGY.md",
     "pyproject.toml",
-    "pytest.ini",
     "README.md",
     "setup.sh",
+    "train.example.toml",
     "uv.lock",
 }
 ALWAYS_DEAD_PREFIXES = ("plans/", "~/git/")

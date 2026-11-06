@@ -1,85 +1,69 @@
 """Which plants train and inference process, as set by ``plant_ids``."""
 
-from datetime import datetime
 from pathlib import Path
 
 import polars as pl
 import pytest
 
-from app.internal.config import (
-    Config,
-    PostprocessingConfig,
-    TimeWindow,
-    TimeWindows,
-)
-from app.readers import InputData, read_plant_artifacts
-from app.train import TrainManager
-from app.writers import write_plant_artifacts
+from rest2_ons import infer, train
+from rest2_ons.readers import InputData
+from tests.conftest import infer_config, local_storage, train_config
 
 pytestmark = pytest.mark.integration
-
-WINDOW = TimeWindow(datetime(2024, 1, 1), datetime(2024, 1, 1, 23))
-
-
-def make_config(
-    input_dir: Path, out_dir: Path, plant_ids: list[str] | None
-) -> Config:
-    return Config(
-        mode="train",
-        input=str(input_dir),
-        output=str(out_dir / "output"),
-        artifact=str(out_dir / "artifacts"),
-        time_windows=TimeWindows(
-            training=WINDOW, validation=WINDOW, test=WINDOW, inference=WINDOW
-        ),
-        postprocessing=PostprocessingConfig(plots=False),
-        plant_ids=plant_ids,
-        forecasting_day_ahead=0,
-        target_radiation_type="ghi",
-    )
 
 
 def ids_in_usinas_csv(input_dir: Path) -> set[str]:
     return set(pl.read_csv(input_dir / "usinas.csv")["id_usina"].to_list())
 
 
+def written_ids(directory: Path, suffix: str) -> set[str]:
+    return {p.name.removesuffix(suffix) for p in directory.glob(f"*{suffix}")}
+
+
 def test_null_plant_ids_train_every_plant_in_usinas_csv(
     generated_input_dir: Path, tmp_path: Path
 ) -> None:
-    config = make_config(generated_input_dir, tmp_path, None)
+    config = train_config(
+        tmp_path, input={"uri": str(generated_input_dir)}, plant_ids=None
+    )
 
-    results = TrainManager(config, InputData(config.input)).train()
+    train(config)
 
     expected = ids_in_usinas_csv(generated_input_dir)
     assert len(expected) > 1
-    assert set(results) == expected
+    assert written_ids(tmp_path / "artifacts", ".json") == expected
 
 
-def test_null_plant_ids_read_an_artifact_for_every_plant(
+def test_null_plant_ids_infer_every_plant_in_usinas_csv(
     generated_input_dir: Path, tmp_path: Path
 ) -> None:
-    config = make_config(generated_input_dir, tmp_path, None)
-    reader = InputData(config.input)
-    write_plant_artifacts(config, TrainManager(config, reader).train())
+    input_location = {"uri": str(generated_input_dir)}
+    train(train_config(tmp_path, input=input_location, plant_ids=None))
 
-    artifacts = read_plant_artifacts(config, reader)
+    infer(infer_config(tmp_path, input=input_location, plant_ids=None))
 
-    assert set(artifacts) == ids_in_usinas_csv(generated_input_dir)
+    assert written_ids(tmp_path / "output", ".parquet") == ids_in_usinas_csv(
+        generated_input_dir
+    )
 
 
 def test_listed_plant_ids_train_only_those(
     generated_input_dir: Path, tmp_path: Path
 ) -> None:
-    config = make_config(generated_input_dir, tmp_path, ["TEST002"])
+    config = train_config(
+        tmp_path,
+        input={"uri": str(generated_input_dir)},
+        plant_ids=["TEST002"],
+    )
 
-    results = TrainManager(config, InputData(config.input)).train()
+    train(config)
 
-    assert set(results) == {"TEST002"}
+    assert written_ids(tmp_path / "artifacts", ".json") == {"TEST002"}
 
 
 def test_listed_plant_ids_are_not_filtered_against_usinas_csv(
     generated_input_dir: Path,
 ) -> None:
-    reader = InputData(str(generated_input_dir))
+    reader = InputData(local_storage(generated_input_dir))
 
     assert reader.plant_ids(["NOT_IN_USINAS"]) == ["NOT_IN_USINAS"]

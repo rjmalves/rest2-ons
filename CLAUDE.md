@@ -19,10 +19,10 @@ what an agent working in this checkout needs beyond them.
 ## Quick commands
 
 ```bash
-uv sync --extra dev                              # locked dev environment in .venv
-uv run pytest --cov=app                          # suite, with the coverage floor
+uv sync                                         # locked dev environment in .venv
+uv run pytest --cov                             # suite, with the coverage floor
 uv run ruff check . && uv run ruff format --check .
-uv run mypy app main.py tests scripts/ci         # strict, set in pyproject.toml
+uv run mypy                                     # strict, paths set in pyproject.toml
 uv run python scripts/ci/check_no_plan_leaks.py  # hard gates, also run by CI
 uv run python scripts/ci/check_comment_refs.py
 uv run python scripts/ci/check_doc_paths.py
@@ -46,7 +46,7 @@ is read and are the authoritative statements; do not restate them here:
 Hard rules that are fixed before any commit:
 
 - No planning vocabulary (`epic`, `ticket`, `sprint`, plan or program
-  registry ids) in `app/`, `main.py`, `tests/` prose or the shipped docs.
+  registry ids) in `src/rest2_ons`, `tests/` prose or the shipped docs.
   Plans live in `plans/`, which is never committed; commit messages may
   reference them.
 - No rot-prone references in shipped prose: no `file.py:NNN`, no
@@ -56,9 +56,9 @@ Hard rules that are fixed before any commit:
   endpoints or tags) in any committed file or commit message; they belong in
   the untracked `.env`.
 - Timestamps are naive and mean UTC. Input file units are declared once, in
-  `DECLARED_UNITS` (`app/input_contract.py`), and checked as each file is
-  read; `LocationInputData.apply_unit_conversions` then converts to the units
-  the REST2 equations take. A producer changing its unit changes the
+  `DECLARED_UNITS` (`src/rest2_ons/input_contract.py`), and checked as each
+  file is read; `LocationInputData.apply_unit_conversions` then converts to
+  the units the REST2 equations take. A producer changing its unit changes the
   declaration and that conversion together.
 - Comments are default-off: a comment ships only if it survives the Deletion
   Test; never delete or weaken a load-bearing unit, time-base or

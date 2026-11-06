@@ -1,15 +1,18 @@
+import json
+import re
 from datetime import datetime
 from pathlib import Path
 
 import polars as pl
 import pytest
+from nwp_core.errors import RunFailedError
+from nwp_core.run import ItemStatus
 
-from app.inference import InferenceManager, PlantResult
-from app.internal.config import Config
-from app.readers import InputData
-from app.services.radiation import REST2Result
-from app.utils.data import PlantArtifact
-from app.writers import write_inference_results
+from rest2_ons import infer
+from rest2_ons.inference import PlantResult
+from rest2_ons.services.radiation import REST2Result
+from rest2_ons.writers import write_plant_output
+from tests.conftest import infer_config, local_storage
 
 
 def _distinct_result() -> REST2Result:
@@ -50,29 +53,49 @@ def test_unknown_type_raises_value_error() -> None:
         plant_result.chosen_radiation()
 
 
-def test_write_inference_results_writes_ghi_tracker(
-    sample_config: Config,
-) -> None:
+def test_write_plant_output_writes_ghi_tracker(tmp_path: Path) -> None:
     plant_result = PlantResult(
         radiation=_distinct_result(), radiation_type="ghi_tracker"
     )
 
-    write_inference_results(sample_config, {"TEST001": plant_result})
+    write_plant_output(local_storage(tmp_path), "TEST001", plant_result)
 
-    written = pl.read_parquet(Path(sample_config.output) / "TEST001.parquet")
+    written = pl.read_parquet(tmp_path / "TEST001.parquet")
     assert written["valor"].to_list() == [1.0]
 
 
-def test_predict_rejects_artifacts_trained_on_another_radiation_type(
-    sample_config: Config,
+def test_infer_rejects_artifacts_trained_on_another_radiation_type(
+    generated_input_dir: Path, tmp_path: Path
 ) -> None:
+    config = infer_config(
+        tmp_path,
+        input={"uri": str(generated_input_dir)},
+        plant_ids=["TEST001", "TEST002"],
+    )
     fitted = {"mu0": 0.1, "g": 0.5}
-    artifacts = {
-        "TEST001": PlantArtifact(fitted, metrics={}, radiation_type="ghi"),
-        "TEST002": PlantArtifact(fitted, metrics={}, radiation_type="dni"),
-    }
-    manager = InferenceManager(sample_config, InputData(sample_config.input))
+    artifact_dir = Path(config.artifact.uri)
+    for plant_id, radiation_type in {
+        "TEST001": "ghi",
+        "TEST002": "dni",
+    }.items():
+        (artifact_dir / f"{plant_id}.json").write_text(
+            json.dumps(
+                {
+                    "parameters": fitted,
+                    "metrics": {},
+                    "radiation_type": radiation_type,
+                }
+            )
+        )
 
-    with pytest.raises(ValueError, match=r"'ghi'.*'TEST002': 'dni'") as error:
-        manager.predict(artifacts)
-    assert "TEST001" not in str(error.value)
+    with pytest.raises(RunFailedError) as error:
+        infer(config)
+
+    failed = [
+        i for i in error.value.outcome.items if i.status == ItemStatus.FAILED
+    ]
+    assert [i.item_id for i in failed] == ["TEST002"]
+    assert failed[0].error_type == "RadiationTypeMismatchError"
+    message = failed[0].error_message or ""
+    assert re.search(r"'TEST002'.*'dni'.*'ghi'", message)
+    assert "TEST001" not in message

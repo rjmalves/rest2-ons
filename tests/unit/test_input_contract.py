@@ -3,8 +3,8 @@ import logging
 import polars as pl
 import pytest
 
-from app import input_contract
-from app.input_contract import (
+from rest2_ons import Rest2Error, input_contract
+from rest2_ons.input_contract import (
     DECLARED_UNITS,
     PLAUSIBLE_RANGES,
     EmptyInputError,
@@ -62,20 +62,20 @@ def test_tail_outlier_warns_without_raising(
 ) -> None:
     series = pl.Series([1000.0] * 200 + [5000.0])
 
-    with caplog.at_level(logging.WARNING, logger="app.input_contract"):
+    with caplog.at_level(logging.WARNING, logger="rest2_ons.input_contract"):
         # Pins the documented None return: the check signals only by raising.
         assert validate_input_units("psurf", series) is None  # type: ignore[func-returns-value]
 
     records = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert len(records) == 1
-    assert records[0].name == "app.input_contract"
+    assert records[0].name == "rest2_ons.input_contract"
     assert "1 of 201" in records[0].getMessage()
 
 
 def test_in_envelope_column_does_not_warn(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    with caplog.at_level(logging.WARNING, logger="app.input_contract"):
+    with caplog.at_level(logging.WARNING, logger="rest2_ons.input_contract"):
         validate_input_units("albedo", pl.Series([0.0, 0.2, 1.0]))
 
     assert caplog.records == []
@@ -124,5 +124,6 @@ def test_missing_plausibility_range_raises_contract_error(
 
 def test_contract_errors_are_value_errors() -> None:
     assert issubclass(InputContractError, ValueError)
+    assert issubclass(InputContractError, Rest2Error)
     assert issubclass(InputUnitMismatchError, InputContractError)
     assert issubclass(EmptyInputError, InputContractError)

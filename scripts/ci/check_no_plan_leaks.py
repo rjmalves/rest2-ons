@@ -8,9 +8,9 @@ not how the work was organised (`.claude/rules/comments.md` N4,
 Three hard scopes (any hit fails the gate):
 
 * shipped docs: whole-file scan of README.md, CONTRIBUTING.md, CHANGELOG.md,
-  ARCHITECTURE.md, METHODOLOGY.md and docs/**/*.md, minus
+  ARCHITECTURE.md, METHODOLOGY.md, DEBT.md and docs/**/*.md, minus
   ``_scan.EXEMPT_DOCS``.
-* source prose: comments and docstrings under app/ and in main.py.
+* source prose: comments and docstrings under src/rest2_ons.
 * test prose: comments and docstrings under tests/. Test file names and test
   function names are never scanned, and identifiers join plan ids with ``_``
   (a word character), so ``test_ticket_016_regression`` never matches while
@@ -57,6 +57,7 @@ HARD_DOCS = [
     "CHANGELOG.md",
     "ARCHITECTURE.md",
     "METHODOLOGY.md",
+    "DEBT.md",
 ]
 HARD_GLOBS = ["docs/**/*.md"]
 
@@ -112,9 +113,7 @@ def main() -> int:
             )
             print("\n".join(f"  {hit}" for hit in docs))
         if source:
-            _print_prose_scope(
-                "app/ and main.py prose", source, show_all=show_all
-            )
+            _print_prose_scope("src/rest2_ons prose", source, show_all=show_all)
         if tests:
             _print_prose_scope("tests/ prose", tests, show_all=show_all)
         print()
@@ -125,7 +124,7 @@ def main() -> int:
         return 1
 
     print(
-        "OK: no plan-structure leaks in shipped docs, app/, main.py or tests/."
+        "OK: no plan-structure leaks in shipped docs, src/rest2_ons or tests/."
     )
     return 0
 

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import polars as pl
 
-from app.input_contract import validate_input_units
+from rest2_ons.input_contract import validate_input_units
 from tests.fixtures.generate_test_data import (
     generate_atmospheric_data,
     generate_cod_data,

@@ -20,16 +20,12 @@ import numpy as np
 import polars as pl
 import pytest
 from numpy.testing import assert_allclose
+from nwp_core.config import TimeWindow
 
-from app.internal.config import (
-    Config,
-    PostprocessingConfig,
-    TimeWindow,
-    TimeWindows,
-)
-from app.readers import InputData
-from app.services.radiation import REST2
-from app.train import TrainManager
+from rest2_ons.readers import InputData
+from rest2_ons.services.radiation import REST2
+from rest2_ons.training import TrainManager
+from tests.conftest import local_storage, train_config
 from tests.fixtures.generate_test_data import (
     generate_atmospheric_data,
     generate_cod_data,
@@ -39,7 +35,8 @@ from tests.fixtures.generate_test_data import (
 pytestmark = pytest.mark.integration
 
 START = datetime(2024, 1, 1)
-END = datetime(2024, 1, 1, 23)
+END = datetime(2024, 1, 2)
+WINDOW = TimeWindow(start=START, end=END)
 TRUTH = {"mu0": 0.2, "g": 0.7}
 KEYS = ("mu0", "g", "ME", "MAE", "RMSE")
 
@@ -47,14 +44,14 @@ GOLDEN: dict[str, dict[str, float]] = {
     "ghi": {
         "mu0": 0.20142024493518343,
         "g": 0.7001660063458379,
-        "ME": 2.0618856712556286,
+        "ME": -2.0618856712556286,
         "MAE": 6.070548736004769,
         "RMSE": 8.45515104659463,
     },
     "dni": {
         "mu0": 0.2012573803728946,
         "g": 0.85,
-        "ME": 3.4381083799407723,
+        "ME": -3.4381083799407723,
         "MAE": 4.6916817254820895,
         "RMSE": 7.417174605487244,
     },
@@ -67,9 +64,9 @@ def build_golden_input_dir(directory: Path, radiation_type: str) -> None:
     generate_usinas_metadata(directory)
 
     location = (
-        InputData(str(directory))
+        InputData(local_storage(directory))
         .for_location(-22.5, -45.5)
-        .time_range(START, END)
+        .time_range(WINDOW)
         .forecasting_day_filter(0)
         .build()
     )
@@ -88,30 +85,38 @@ def build_golden_input_dir(directory: Path, radiation_type: str) -> None:
 
 
 def run_golden_fit(directory: Path, radiation_type: str) -> dict[str, float]:
-    window = TimeWindow(START, END)
-    config = Config(
-        mode="train",
-        input=str(directory),
-        output=str(directory),
-        artifact=str(directory / "artifacts"),
-        time_windows=TimeWindows(
-            training=window,
-            validation=window,
-            test=window,
-            inference=window,
-        ),
-        postprocessing=PostprocessingConfig(plots=False),
-        plant_ids=["TEST001"],
-        forecasting_day_ahead=0,
+    config = train_config(
+        directory,
+        input={"uri": str(directory)},
+        training_window=WINDOW,
+        validation_window=WINDOW,
+        test_window=WINDOW,
         target_radiation_type=radiation_type,
     )
     train = (
-        TrainManager(config, InputData(config.input)).train()["TEST001"].train
+        TrainManager(config, InputData(local_storage(directory)))
+        .train_plant("TEST001")
+        .train
     )
     return {
         key: float(value)
         for key, value in {**train.parameters, **train.metrics}.items()
     }
+
+
+def test_calibration_window_reads_24_hourly_timestamps(tmp_path: Path) -> None:
+    build_golden_input_dir(tmp_path, "ghi")
+
+    measured = InputData(local_storage(tmp_path)).read_measured_for_plant(
+        "TEST001", WINDOW
+    )
+
+    times = measured["time"]
+    assert times.min() == datetime(2024, 1, 1, 0)
+    assert times.max() == datetime(2024, 1, 1, 23)
+    assert times.filter(times.dt.minute() == 0).to_list() == [
+        datetime(2024, 1, 1, hour) for hour in range(24)
+    ]
 
 
 @pytest.mark.parametrize("radiation_type", ["ghi", "dni"])
